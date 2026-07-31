@@ -1,0 +1,60 @@
+@page "/customers"
+@inject AppDbContext Db
+
+<PageTitle>مدیریت مشتریان و حساب‌ها</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">👥 مدیریت مشتریان و اشخاص</h2>
+            <p class="text-sm text-gray-500 mt-1">مشاهده لیست مشتریان، بنکداران و حساب‌های مالی آن‌ها.</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <table class="w-full text-right border-collapse">
+            <thead>
+                <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                    <th class="p-4">کد حساب</th>
+                    <th class="p-4">نام مشتری</th>
+                    <th class="p-4">تلفن</th>
+                    <th class="p-4">گروه</th>
+                    <th class="p-4">آدرس</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y text-sm text-gray-700">
+                @foreach (var c in customers)
+                {
+                    <tr>
+                        <td class="p-4 font-mono font-bold text-amber-600">@c.Code</td>
+                        <td class="p-4 font-semibold">@c.Name</td>
+                        <td class="p-4">@c.Phone</td>
+                        <td class="p-4"><span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded">@c.Grp</span></td>
+                        <td class="p-4 text-gray-500">@c.Address</td>
+                    </tr>
+                }
+                @if (!customers.Any())
+                {
+                    <tr>
+                        <td colspan="5" class="p-8 text-center text-gray-500">هیچ مشتری ثبت نشده است.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Customer> customers = new();
+
+    protected override void OnInitialized()
+    {
+        customers = Db.Customers.ToList();
+        if (!customers.Any())
+        {
+            Db.Customers.Add(new Customer { Code = 1, Name = "مشتری عمومی (نقدی)", Phone = "09120000000", Grp = "مشتریان", Address = "تهران", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Db.SaveChanges();
+            customers = Db.Customers.ToList();
+        }
+    }
+}

@@ -1,0 +1,61 @@
+@page "/invoices"
+@inject AppDbContext Db
+
+<PageTitle>مدیریت فاکتورها و فروش</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🧾 مدیریت فاکتورها و ماژول فروش</h2>
+            <p class="text-sm text-gray-500 mt-1">مشاهده فاکتورهای صادر شده از نرم‌افزار اندروید و فروشگاه آنلاین به همراه سند حسابداری اتوماتیک.</p>
+        </div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-right border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b text-gray-600 text-sm">
+                        <th class="p-4">شماره</th>
+                        <th class="p-4">تاریخ</th>
+                        <th class="p-4">مشتری</th>
+                        <th class="p-4">مبلغ کل (تومان)</th>
+                        <th class="p-4">پرداخت نقدی</th>
+                        <th class="p-4">مانده بدهی</th>
+                        <th class="p-4">کد رهگیری (Idempotent)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y text-sm text-gray-700">
+                    @foreach (var inv in invoices)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-4 font-bold text-amber-600">@inv.Id</td>
+                            <td class="p-4">@inv.DateJ</td>
+                            <td class="p-4 font-semibold">@inv.Cname</td>
+                            <td class="p-4 font-bold text-gray-900">@inv.Total.ToString("N0")</td>
+                            <td class="p-4 text-green-600">@inv.Pcash.ToString("N0")</td>
+                            <td class="p-4 text-red-600">@inv.Debt.ToString("N0")</td>
+                            <td class="p-4 font-mono text-xs text-gray-500">@(string.IsNullOrEmpty(inv.TransferCode) ? "—" : inv.TransferCode)</td>
+                        </tr>
+                    }
+                    @if (!invoices.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="p-8 text-center text-gray-500">هیچ فاکتور یا فروشی هنوز ثبت نشده است.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Invoice> invoices = new();
+
+    protected override void OnInitialized()
+    {
+        invoices = Db.Invoices.OrderByDescending(i => i.Id).ToList();
+    }
+}

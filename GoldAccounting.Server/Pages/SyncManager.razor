@@ -1,0 +1,54 @@
+@page "/syncmanager"
+@inject AppDbContext Db
+
+<PageTitle>مدیریت همگام‌سازی اندروید</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">🔄 گزارش همگام‌سازی ابری اندروید</h2>
+        <p class="text-sm text-gray-500 mt-1">مشاهده تراکنش‌های همگام‌سازی شده از برنامه‌های اندروید با کد یکتا (Idempotency Key) جهت جلوگیری از تکرار.</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <table class="w-full text-right border-collapse">
+            <thead>
+                <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                    <th class="p-4">شناسه</th>
+                    <th class="p-4">کد رهگیری یکتا (TransferCode)</th>
+                    <th class="p-4">شناسه دستگاه</th>
+                    <th class="p-4">خلاصه داده</th>
+                    <th class="p-4">وضعیت</th>
+                    <th class="p-4">پیام سرور</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y text-sm text-gray-700">
+                @foreach (var log in logs)
+                {
+                    <tr>
+                        <td class="p-4 font-bold text-amber-600">@log.Id</td>
+                        <td class="p-4 font-mono text-xs text-purple-700 font-bold">@log.TransferCode</td>
+                        <td class="p-4 text-xs text-gray-600">@log.DeviceId</td>
+                        <td class="p-4 text-xs">@log.PayloadSummary</td>
+                        <td class="p-4"><span class="bg-green-100 text-green-800 text-xs px-2.5 py-1 rounded font-bold">@log.Status</span></td>
+                        <td class="p-4 text-xs text-gray-500">@log.Message</td>
+                    </tr>
+                }
+                @if (!logs.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-gray-500">هیچ لاگ همگام‌سازی ثبت نشده است.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<SyncLog> logs = new();
+
+    protected override void OnInitialized()
+    {
+        logs = Db.SyncLogs.OrderByDescending(l => l.Id).ToList();
+    }
+}
