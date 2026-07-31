@@ -98,7 +98,11 @@ public class Db extends SQLiteOpenHelper {
 
     /** کدینگ‌های پیش‌فرض */
     private void seedDefs(SQLiteDatabase db) {
-        if (countWhere("defs", null, null, null) > 0) return;
+        Cursor cnt = db.rawQuery("SELECT COUNT(*) FROM defs", null);
+        int has = 0;
+        if (cnt.moveToFirst()) has = cnt.getInt(0);
+        cnt.close();
+        if (has > 0) return;
         long ts = System.currentTimeMillis();
         String[] groups = {"مشتریان", "تولیدکنندگان", "بنکداران", "همکاران", "پرسنل"};
         for (String g : groups) addDef(db, "group", g, 0, 0, "", ts);
@@ -130,14 +134,6 @@ public class Db extends SQLiteOpenHelper {
         cv.put("x1", x1); cv.put("x2", x2); cv.put("x3", x3); cv.put("cts", ts);
         db.insert("defs", null, cv);
     }
-    private int countWhere(String table, String where, String[] args, String x) {
-        Cursor c = getReadableDatabase().rawQuery("SELECT COUNT(*) FROM " + table + (where != null ? " WHERE " + where : ""), args);
-        c.moveToFirst();
-        int r = c.getInt(0);
-        c.close();
-        return r;
-    }
-
     // ---------- settings ----------
     public String getS(String k, String def) {
         Cursor c = getReadableDatabase().rawQuery("SELECT v FROM settings WHERE k=?", new String[]{k});
