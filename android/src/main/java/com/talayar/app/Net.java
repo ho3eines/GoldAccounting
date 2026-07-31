@@ -87,13 +87,57 @@ public class Net {
         return 0;
     }
 
-    /** پارس بادقت JSON قیمت — بازگشت تعداد کلیدهای پیدا شده */
-    public static int parsePrices(Db db, String json) throws Exception {
+    /** پارس بادقت JSON قیمت — با قابلیت خواندن مسیرهای سفارشی یا تشخیص خودکار */
+    public static int parsePrices(Db db, String json, String customMap) throws Exception {
         int found = 0;
         JSONObject root = new JSONObject(json);
 
-        // 1. بررسی دسته‌های آرایه‌ای (ساختار BrsApi: {"gold": [...], "currency": [...]})
-        String[] categories = {"gold", "currency", "cryptocurrency", "bullion", "coin", "data_arr"};
+        // اگر کاربر مسیرهای سفارشی مشخص کرده باشد (مثلاً: gold,currency,cryptocurrency یا data)
+        if (customMap != null && customMap.trim().length() > 0) {
+            String[] paths = customMap.split(",");
+            for (String p : paths) {
+                String path = p.trim();
+                if (path.length() == 0) continue;
+                // بررسی اینکه آیا آرایه است یا شیء
+                org.json.JSONArray arr = root.optJSONArray(path);
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        Object item = arr.opt(i);
+                        if (item instanceof JSONObject) {
+                            JSONObject obj = (JSONObject) item;
+                            String sym = obj.optString("symbol", obj.optString("key", obj.optString("name_en", "")));
+                            String mapped = mapSymbol(sym);
+                            long price = extract(obj);
+                            if (mapped != null && price > 0) {
+                                db.priceSet(mapped, price);
+                                found++;
+                            }
+                        }
+                    }
+                } else {
+                    JSONObject subObj = root.optJSONObject(path);
+                    if (subObj != null) {
+                        Iterator<String> it = subObj.keys();
+                        while (it.hasNext()) {
+                            String k = (String) it.next();
+                            Object v = subObj.opt(k);
+                            if (v instanceof JSONObject) {
+                                String mapped = mapSymbol(k);
+                                long price = extract((JSONObject) v);
+                                if (mapped != null && price > 0) {
+                                    db.priceSet(mapped, price);
+                                    found++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (found > 0) return found;
+        }
+
+        // جستجوی خودکار پیش‌فرض در تمام دسته‌های آرایه‌ای رایج
+        String[] categories = {"gold", "currency", "cryptocurrency", "bullion", "coin", "data_arr", "items", "rates", "market"};
         for (String cat : categories) {
             org.json.JSONArray arr = root.optJSONArray(cat);
             if (arr != null) {
@@ -113,7 +157,7 @@ public class Net {
             }
         }
 
-        // 2. پشتیبانی از ساختار شیء کلید-مقدار (ساختار TGJU: {"data": {"geram18": {...}, ...}})
+        // بررسی ساختار شیء کلید-مقدار (مانند TGJU: {"data": {...}} یا ریشه)
         JSONObject data = root.optJSONObject("data");
         if (data == null) data = root;
         Iterator<String> it = data.keys();
@@ -129,6 +173,10 @@ public class Net {
             }
         }
         return found;
+    }
+
+    public static int parsePrices(Db db, String json) throws Exception {
+        return parsePrices(db, json, null);
     }
 
     /** دریافت قیمت‌ها در نخ پس‌زمینه */
@@ -154,7 +202,8 @@ public class Net {
                     while ((line = br.readLine()) != null) sb.append(line);
                     br.close();
                     if (code < 200 || code >= 300) throw new Exception("کد پاسخ: " + code);
-                    found = parsePrices(db, sb.toString());
+                    String customMap = db.getS("api_map", "");
+                    found = parsePrices(db, sb.toString(), customMap);
                     if (found == 0) throw new Exception("قیمتی در پاسخ یافت نشد");
                 } catch (Exception e) {
                     err = e.getMessage() == null ? "خطای شبکه" : e.getMessage();

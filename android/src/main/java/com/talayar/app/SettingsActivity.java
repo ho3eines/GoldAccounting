@@ -68,30 +68,65 @@ public class SettingsActivity extends A {
         body.addView(c2);
 
         LinearLayout c2b = card();
-        c2b.addView(tv("قیمت‌خوانی آنلاین (اختیاری)", U.GOLD, 15, true));
-        TextView apiHint = tv("برنامه هیچ سرور میانی ندارد؛ قیمت‌ها مستقیم از گوشی شما از این API عمومی خوانده می‌شوند. بدون اینترنت، همهٔ امکانات آفلاین در دسترس‌اند.", U.SUB, 12, false);
+        c2b.addView(tv("قیمت‌خوانی آنلاین (تنظیم پیشرفته API)", U.GOLD, 15, true));
+        TextView apiHint = tv("برنامه هیچ سرور میانی ندارد. می‌توانید از بین APIهای پیش‌فرض انتخاب کنید یا آدرس سفارشی و نگاشت دلخواه را تنظیم کنید.", U.SUB, 12, false);
         apiHint.setLineSpacing(3, 1.2f);
         c2b.addView(apiHint);
-        c2b.addView(label("آدرس API قیمت‌ها"));
+        c2b.addView(space(4));
 
+        c2b.addView(label("انتخاب منبع پیش‌فرض (API)"));
+        final LinearLayout apiPresetBox = h();
+        apiPresetBox.addView(gbtn("TGJU", new Tap() {
+            public void go() {
+                eApi.setText("https://api.tgju.org/v1/data/sana/json");
+                eMap.setText("");
+                db.setS("api_url", "https://api.tgju.org/v1/data/sana/json");
+                db.setS("api_map", "");
+                U.toast(SettingsActivity.this, "منبع TGJU انتخاب شد ✓");
+            }
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        apiPresetBox.addView(wspace(6));
+        apiPresetBox.addView(gbtn("BrsApi", new Tap() {
+            public void go() {
+                eApi.setText("https://Api.BrsApi.ir/Market/Gold_Currency.php?key=BF9gAKuXX4XTksfXYdBFzaFDrQ2ahfvd");
+                eMap.setText("gold,currency,cryptocurrency");
+                db.setS("api_url", "https://Api.BrsApi.ir/Market/Gold_Currency.php?key=BF9gAKuXX4XTksfXYdBFzaFDrQ2ahfvd");
+                db.setS("api_map", "gold,currency,cryptocurrency");
+                U.toast(SettingsActivity.this, "منبع BrsApi انتخاب شد ✓");
+            }
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        c2b.addView(apiPresetBox);
+        c2b.addView(space(6));
+
+        c2b.addView(label("آدرس API قیمت‌ها"));
         final EditText eApi = in(PricesActivity.DEFAULT_API);
         eApi.setText(db.getS("api_url", PricesActivity.DEFAULT_API));
         c2b.addView(eApi);
+
+        c2b.addView(label("مسیرهای آرایه یا دسته‌ها در JSON (با کاما جدا کنید، مثلاً: gold,currency,cryptocurrency یا خالی برای خودکار)"));
+        final EditText eMap = in("خالی = تشخیص خودکار هوشمند");
+        eMap.setText(db.getS("api_map", ""));
+        c2b.addView(eMap);
+
         LinearLayout rApi = h();
-        rApi.addView(btn("ذخیره", new Tap() {
+        rApi.addView(btn("ذخیره تنظیمات API", new Tap() {
             public void go() {
                 String u = U.str(eApi);
                 if (u.length() == 0) u = PricesActivity.DEFAULT_API;
+                String m = U.str(eMap);
                 db.setS("api_url", u);
+                db.setS("api_map", m);
                 eApi.setText(u);
                 U.toast(SettingsActivity.this, "ذخیره شد ✓");
             }
         }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         rApi.addView(wspace(8));
-        rApi.addView(gbtn("بازگشت به پیش‌فرض", new Tap() {
+        rApi.addView(gbtn("پیش‌فرض", new Tap() {
             public void go() {
                 db.setS("api_url", PricesActivity.DEFAULT_API);
+                db.setS("api_map", "");
                 eApi.setText(PricesActivity.DEFAULT_API);
+                eMap.setText("");
                 U.toast(SettingsActivity.this, "به پیش‌فرض برگشت ✓");
             }
         }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
