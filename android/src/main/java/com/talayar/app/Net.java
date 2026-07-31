@@ -186,7 +186,6 @@ public class Net {
                 String err = null;
                 HttpURLConnection con = null;
                 try {
-                    // ساخت پیلود داده‌های محلی جهت ارسال به سرور
                     JSONObject payload = new JSONObject();
                     String transferCode = "AND-SYNC-" + java.util.UUID.randomUUID().toString();
                     payload.put("TransferCode", transferCode);
@@ -201,7 +200,6 @@ public class Net {
                             if (c.isNull(c.getColumnIndex(col))) continue;
                             o.put(col, c.getString(c.getColumnIndex(col)));
                         }
-                        // اضافه کردن کد یکتا برای هر فاکتور اگر ندارد
                         if (!o.has("TransferCode") || o.optString("TransferCode").length() == 0) {
                             o.put("TransferCode", "INV-" + java.util.UUID.randomUUID().toString());
                         }
@@ -210,7 +208,6 @@ public class Net {
                     c.close();
                     payload.put("Invoices", invArray);
 
-                    // ارسال درخواست HTTP POST به سرور ابری
                     URL u = new URL(serverUrl.endsWith("/") ? serverUrl + "api/sync/push" : serverUrl + "/api/sync/push");
                     con = (HttpURLConnection) u.openConnection();
                     con.setConnectTimeout(15000);
@@ -250,6 +247,8 @@ public class Net {
             }
         }).start();
     }
+
+    /** دریافت قیمت‌ها در نخ پس‌زمینه */
     public static void fetchPrices(final Db db, final String url, final android.app.Activity act, final Done done) {
         new Thread(new Runnable() {
             public void run() {
@@ -289,7 +288,7 @@ public class Net {
                     cv.put("ts", System.currentTimeMillis());
                     cv.put("date_j", Jal.today());
                     cv.put("rate", g18);
-                    db.ins("rates", cv);
+                    db.ins("rates", cv); // wait, db.ins("rates", cv)
                 }
                 act.runOnUiThread(new Runnable() {
                     public void run() {
