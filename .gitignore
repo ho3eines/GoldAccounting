@@ -1,0 +1,7 @@
+gen/
+classes/
+dexout/
+res.zip
+talayar-raw.apk
+talayar-full.apk
+publish/*.idsig
