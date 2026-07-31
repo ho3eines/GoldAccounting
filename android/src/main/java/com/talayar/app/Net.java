@@ -37,26 +37,46 @@ public class Net {
         return k;
     }
 
-    /** نگاشت کلیدهای TGJU به کلیدهای ما */
-    static String mapTgju(String tg) {
-        if (tg.equals("geram18")) return "gold18";
-        if (tg.equals("mesghal")) return "mesghal";
-        if (tg.equals("geram24")) return "gold24";
-        if (tg.equals("ons") || tg.equals("ons_dollar")) return "ons";
-        if (tg.equals("silver")) return "silver";
-        if (tg.equals("sekee") || tg.equals("sekee_emami") || tg.equals("emami_sell")) return "coin_imami";
-        if (tg.equals("sekeb")) return "coin_bahar";
-        if (tg.equals("nim")) return "coin_nim";
-        if (tg.equals("rob")) return "coin_rob";
-        if (tg.equals("gerami")) return "coin_gerami";
-        if (tg.equals("price_dollar_rl")) return "usd";
-        if (tg.equals("price_eur")) return "eur";
-        if (tg.equals("price_aed")) return "aed";
-        if (tg.equals("price_try")) return "try_";
+    /** نگاشت کلیدهای TGJU و BrsApi به کلیدهای ما */
+    static String mapSymbol(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim().toLowerCase();
+        // TGJU keys
+        if (s.equals("geram18")) return "gold18";
+        if (s.equals("mesghal")) return "mesghal";
+        if (s.equals("geram24")) return "gold24";
+        if (s.equals("ons") || s.equals("ons_dollar")) return "ons";
+        if (s.equals("silver")) return "silver";
+        if (s.equals("sekee") || s.equals("sekee_emami") || s.equals("emami_sell")) return "coin_imami";
+        if (s.equals("sekeb")) return "coin_bahar";
+        if (s.equals("nim")) return "coin_nim";
+        if (s.equals("rob")) return "coin_rob";
+        if (s.equals("gerami")) return "coin_gerami";
+        if (s.equals("price_dollar_rl")) return "usd";
+        if (s.equals("price_eur")) return "eur";
+        if (s.equals("price_aed")) return "aed";
+        if (s.equals("price_try")) return "try_";
+
+        // BrsApi symbols
+        if (s.equals("ir_gold_18k") || s.equals("gold_18k") || s.equals("18k")) return "gold18";
+        if (s.equals("ir_gold_melted") || s.equals("gold_melted") || s.equals("melted")) return "mesghal";
+        if (s.equals("ir_gold_24k") || s.equals("gold_24k") || s.equals("24k")) return "gold24";
+        if (s.equals("xauusd") || s.equals("gold_ounce")) return "ons";
+        if (s.equals("ir_coin_emami") || s.equals("coin_emami") || s.equals("emami")) return "coin_imami";
+        if (s.equals("ir_coin_bahar") || s.equals("coin_bahar") || s.equals("bahar")) return "coin_bahar";
+        if (s.equals("ir_coin_half") || s.equals("coin_half") || s.equals("nim")) return "coin_nim";
+        if (s.equals("ir_coin_quarter") || s.equals("coin_quarter") || s.equals("rob")) return "coin_rob";
+        if (s.equals("ir_coin_1g") || s.equals("coin_1g") || s.equals("gerami")) return "coin_gerami";
+        if (s.equals("usd") || s.equals("us_dollar")) return "usd";
+        if (s.equals("eur") || s.equals("euro")) return "eur";
+        if (s.equals("aed") || s.equals("uae_dirham")) return "aed";
+        if (s.equals("try") || s.equals("turkish_lira")) return "try_";
+        if (s.equals("silver") || s.equals("ir_silver")) return "silver";
+
         return null;
     }
 
-    /** تلاش برای استخراج قیمت عددی از یک گره JSON (TGJU: معمولاً فیلد p) */
+    /** تلاش برای استخراج قیمت عددی از یک گره JSON (TGJU/BrsApi) */
     static long extract(JSONObject o) {
         String[] cand = {"p", "price", "latest", "value", "l"};
         for (String c : cand) {
@@ -71,7 +91,29 @@ public class Net {
     public static int parsePrices(Db db, String json) throws Exception {
         int found = 0;
         JSONObject root = new JSONObject(json);
-        // ساختار TGJU: {"data": {"geram18": {...}, ...}}
+
+        // 1. بررسی دسته‌های آرایه‌ای (ساختار BrsApi: {"gold": [...], "currency": [...]})
+        String[] categories = {"gold", "currency", "cryptocurrency", "bullion", "coin", "data_arr"};
+        for (String cat : categories) {
+            org.json.JSONArray arr = root.optJSONArray(cat);
+            if (arr != null) {
+                for (int i = 0; i < arr.length(); i++) {
+                    Object item = arr.opt(i);
+                    if (item instanceof JSONObject) {
+                        JSONObject obj = (JSONObject) item;
+                        String sym = obj.optString("symbol", obj.optString("key", obj.optString("name_en", "")));
+                        String mapped = mapSymbol(sym);
+                        long price = extract(obj);
+                        if (mapped != null && price > 0) {
+                            db.priceSet(mapped, price);
+                            found++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. پشتیبانی از ساختار شیء کلید-مقدار (ساختار TGJU: {"data": {"geram18": {...}, ...}})
         JSONObject data = root.optJSONObject("data");
         if (data == null) data = root;
         Iterator<String> it = data.keys();
@@ -79,7 +121,7 @@ public class Net {
             String k = (String) it.next();
             Object v = data.opt(k);
             if (!(v instanceof JSONObject)) continue;
-            String mapped = mapTgju(k);
+            String mapped = mapSymbol(k);
             long price = extract((JSONObject) v);
             if (mapped != null && price > 0) {
                 db.priceSet(mapped, price);
