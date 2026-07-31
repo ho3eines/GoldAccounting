@@ -1,0 +1,56 @@
+@page "/checks"
+@inject AppDbContext Db
+
+<PageTitle>مدیریت چک‌ها و اسناد بانکی</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">💳 مدیریت چک‌ها و اوراق بهادار</h2>
+        <p class="text-sm text-gray-500 mt-1">مشاهده و بررسی چک‌های دریافتی و پرداختی همگام‌سازی شده از نرم‌افزار اندروید.</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <table class="w-full text-right border-collapse">
+            <thead>
+                <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                    <th class="p-4">شماره چک</th>
+                    <th class="p-4">نوع</th>
+                    <th class="p-4">صاحب / طرف حساب</th>
+                    <th class="p-4">مبلغ (تومان)</th>
+                    <th class="p-4">تاریخ سررسید</th>
+                    <th class="p-4">وضعیت</th>
+                    <th class="p-4">شرح</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y text-sm text-gray-700">
+                @foreach (var chk in checks)
+                {
+                    <tr>
+                        <td class="p-4 font-mono font-bold text-amber-600">@chk.No</td>
+                        <td class="p-4"><span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded">@(chk.Kind == "receive" ? "دریافتی" : "پرداختی")</span></td>
+                        <td class="p-4 font-semibold">@chk.Cname</td>
+                        <td class="p-4 font-bold text-gray-900">@chk.Amount.ToString("N0")</td>
+                        <td class="p-4">@chk.DueJ</td>
+                        <td class="p-4"><span class="bg-purple-50 text-purple-700 text-xs px-2.5 py-1 rounded font-bold">@chk.Status</span></td>
+                        <td class="p-4 text-xs text-gray-500">@chk.Descr</td>
+                    </tr>
+                }
+                @if (!checks.Any())
+                {
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-gray-500">هیچ چکی ثبت یا همگام‌سازی نشده است.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<CheckTransaction> checks = new();
+
+    protected override void OnInitialized()
+    {
+        checks = Db.CheckTransactions.OrderByDescending(c => c.Id).ToList();
+    }
+}
