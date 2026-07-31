@@ -1,177 +1,80 @@
 @page "/onlineshop"
 @inject AppDbContext Db
-@inject AccountingService AccountingService
 
-<PageTitle>فروشگاه آنلاین مشتریان</PageTitle>
+<PageTitle>کاتالوگ محصولات و انبار فروشگاه</PageTitle>
 
 <div class="space-y-6">
-    <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-6 rounded-2xl shadow-lg flex justify-between items-center">
-        <div>
-            <h2 class="text-2xl font-bold">🛒 فروشگاه آنلاین طلا و جواهر</h2>
-            <p class="text-emerald-100 mt-1 text-sm">مشتریان می‌توانند محصولات را مشاهده کرده و مستقیماً سفارش آنلاین ثبت کنند.</p>
+    <!-- Header with Shop & Contact Info -->
+    <div class="bg-gradient-to-r from-slate-900 via-amber-900 to-amber-700 text-white p-6 md:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="space-y-2 text-center md:text-right">
+            <span class="bg-amber-500 text-slate-900 text-xs px-3 py-1 rounded-full font-bold">نمایشگاه آنلاین کالا و انبار</span>
+            <h2 class="text-2xl md:text-3xl font-bold">🪙 کاتالوگ طلایار</h2>
+            <p class="text-amber-100 text-sm max-w-xl">مشتریان عزیز می‌توانند اقلام و محصولات موجود در انبار را مشاهده کرده و جهت خرید و استعلام قیمت دقیق با فروشگاه تماس بگیرند.</p>
         </div>
-        <div class="bg-white text-emerald-800 px-4 py-2 rounded-xl font-bold text-sm shadow">
-            سبد خرید: @cart.Count محصول (@cartTotal.ToString("N0") تومان)
+        <div class="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/20 text-center space-y-2 min-w-[240px]">
+            <p class="text-xs text-amber-200 font-bold">📞 اطلاعات تماس فروشگاه</p>
+            <p class="text-lg font-bold text-white tracking-wide">۰۲۱-۸۸۸۸۰۰۰۰</p>
+            <p class="text-xs text-slate-300">تهران، بازار طلا و جواهر</p>
         </div>
     </div>
 
-    @if (orderSuccess)
-    {
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-            <strong class="font-bold">سفارش شما با موفقیت ثبت شد!</strong>
-            <span class="block sm:inline"> فاکتور صادر و سند حسابداری اتوماتیک ثبت گردید.</span>
-        </div>
-    }
+    <!-- Catalog Grid -->
+    <div class="space-y-4">
+        <h3 class="text-xl font-bold text-gray-800 flex items-center">
+            <span class="ml-2">📦</span> محصولات موجود در انبار
+        </h3>
 
-    <!-- Product Catalog & Cart Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Products -->
-        <div class="lg:col-span-2 space-y-4">
-            <h3 class="text-lg font-bold text-gray-800">محصولات موجود در انبار</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                @foreach (var item in items)
-                {
-                    <div class="bg-white rounded-xl shadow-sm border p-4 flex flex-col justify-between">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @foreach (var item in items)
+            {
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition">
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-start">
+                            <span class="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full font-bold">عیار @item.Karat</span>
+                            <span class="text-xs font-mono text-gray-400">کد: @item.Code</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900">@item.Name</h4>
+                        <p class="text-xs text-gray-500">وزن خالص: @item.Wmw.ToString("N0") میلی‌گرم</p>
+                        @if (!string.IsNullOrEmpty(item.Descr))
+                        {
+                            <p class="text-xs text-gray-600 bg-gray-50 p-2 rounded-xl">@item.Descr</p>
+                        }
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t flex justify-between items-center">
                         <div>
-                            <span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">عیار @item.Karat</span>
-                            <h4 class="font-bold text-gray-800 mt-2">@item.Name</h4>
-                            <p class="text-xs text-gray-500 mt-1">وزن: @item.Wmw گرمی | کد: @item.Code</p>
-                            <p class="text-amber-600 font-bold mt-3">@((item.WVal > 0 ? item.WVal : 80875000).ToString("N0")) تومان</p>
+                            <p class="text-xs text-gray-400">قیمت پایه برآوردی</p>
+                            <p class="text-amber-700 font-bold text-base mt-0.5">@((item.WVal > 0 ? item.WVal : 80875000).ToString("N0")) <span class="text-xs font-normal">تومان</span></p>
                         </div>
-                        <button @onclick="() => AddToCart(item)" class="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg text-sm font-semibold transition">
-                            افزودن به سبد خرید
-                        </button>
+                        <a href="tel:02188880000" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow transition flex items-center">
+                            📞 تماس جهت خرید
+                        </a>
                     </div>
-                }
-                @if (!items.Any())
-                {
-                    <div class="col-span-2 bg-white p-8 text-center text-gray-500 rounded-xl border">
-                        محصولی در انبار یافت نشد. می‌توانید از بخش انبار محصول اضافه کنید.
-                    </div>
-                }
-            </div>
-        </div>
-
-        <!-- Checkout / Cart -->
-        <div class="bg-white rounded-xl shadow-sm border p-6 space-y-4 h-fit">
-            <h3 class="text-lg font-bold text-gray-800 border-b pb-3">🛒 سبد خرید و تسویه</h3>
-            
-            <div class="space-y-2 max-h-60 overflow-y-auto">
-                @if (cart.Any())
-                {
-                    @for (int i = 0; i < cart.Count; i++)
-                    {
-                        var item = cart[i];
-                        int idx = i;
-                        <div class="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg text-xs">
-                            <div>
-                                <p class="font-bold text-gray-800">@item.Name</p>
-                                <p class="text-amber-600 font-semibold mt-0.5">@((item.WVal > 0 ? item.WVal : 80875000).ToString("N0")) تومان</p>
-                            </div>
-                            <button @onclick="() => RemoveFromCart(idx)" class="text-red-500 hover:text-red-700 font-bold px-2 py-1">✕</button>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <p class="text-xs text-gray-400 text-center py-4">سبد خرید شما خالی است.</p>
-                }
-            </div>
-
-            <div class="space-y-3 border-t pt-3">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">نام خریدار / مشتری</label>
-                    <input @bind="customerName" placeholder="نام و نام خانوادگی" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">شماره تماس</label>
-                    <input @bind="customerPhone" placeholder="0912..." class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+            }
+            @if (!items.Any())
+            {
+                <div class="col-span-full bg-white p-12 text-center text-gray-500 rounded-2xl border shadow-sm">
+                    محصولی در انبار یافت نشد.
                 </div>
-            </div>
-
-            <div class="border-t pt-3 space-y-2 text-sm">
-                <div class="flex justify-between font-bold">
-                    <span>مجموع قابل پرداخت:</span>
-                    <span class="text-amber-600">@cartTotal.ToString("N0") تومان</span>
-                </div>
-            </div>
-
-            <button @onclick="Checkout" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition shadow">
-                ثبت نهایی سفارش و صدور فاکتور
-            </button>
+            }
         </div>
     </div>
 </div>
 
 @code {
     private List<Item> items = new();
-    private List<Item> cart = new();
-    private string customerName = "";
-    private string customerPhone = "";
-    private bool orderSuccess = false;
-    private long cartTotal => cart.Sum(i => i.WVal > 0 ? i.WVal : 80875000);
 
     protected override void OnInitialized()
     {
         items = Db.Items.Where(i => i.Status == "stock").ToList();
         if (!items.Any())
         {
-            // Seed sample items if none
-            Db.Items.Add(new Item { Code = 101, Name = "انگشتر طلای طرح ملکه", Karat = 18, Wmw = 5400, WVal = 120000000, Status = "stock", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-            Db.Items.Add(new Item { Code = 102, Name = "دستبند طلا کارتیه", Karat = 18, Wmw = 12500, WVal = 265000000, Status = "stock", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Db.Items.Add(new Item { Code = 101, Name = "انگشتر طلای طرح ملکه", Karat = 18, Wmw = 5400, WVal = 120000000, Status = "stock", Descr = "بسیار شیک و پرطرفدار", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Db.Items.Add(new Item { Code = 102, Name = "دستبند طلا کارتیه", Karat = 18, Wmw = 12500, WVal = 265000000, Status = "stock", Descr = "مدل جدید و ظریف", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Db.Items.Add(new Item { Code = 103, Name = "سرویس کامل طلا عروس", Karat = 18, Wmw = 45000, WVal = 950000000, Status = "stock", Descr = "مخصوص مراسم و سرمایه‌گذاری", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
             Db.SaveChanges();
             items = Db.Items.Where(i => i.Status == "stock").ToList();
         }
-    }
-
-    private void AddToCart(Item item)
-    {
-        cart.Add(item);
-        orderSuccess = false;
-    }
-
-    private void RemoveFromCart(int index)
-    {
-        if (index >= 0 && index < cart.Count)
-        {
-            cart.RemoveAt(index);
-        }
-    }
-
-    private void Checkout()
-    {
-        if (!cart.Any() || string.IsNullOrEmpty(customerName)) return;
-
-        var transferCode = "WEB-" + Guid.NewGuid().ToString();
-        long total = cartTotal;
-
-        var inv = new Invoice
-        {
-            Ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            DateJ = "1405/05/09",
-            Cid = 1,
-            Cname = customerName,
-            Rate = 18665400,
-            GoldVal = total,
-            Wage = 0,
-            Stone = 0,
-            Tax = 0,
-            Total = total,
-            Pcash = total,
-            Debt = 0,
-            Note = "خرید آنلاین از فروشگاه وب",
-            TransferCode = transferCode
-        };
-
-        Db.Invoices.Add(inv);
-        Db.SaveChanges();
-
-        // ثبت سند حسابداری اتوماتیک
-        AccountingService.GenerateVoucherForInvoice(inv);
-
-        cart.Clear();
-        customerName = "";
-        customerPhone = "";
-        orderSuccess = true;
     }
 }
