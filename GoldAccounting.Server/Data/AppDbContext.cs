@@ -17,6 +17,7 @@ namespace GoldAccounting.Server.Data
         public DbSet<AccountingVoucher> AccountingVouchers { get; set; }
         public DbSet<VoucherRow> VoucherRows { get; set; }
         public DbSet<SyncLog> SyncLogs { get; set; }
+        public DbSet<UserAccount> UserAccounts { get; set; }
         public DbSet<CheckTransaction> CheckTransactions { get; set; }
         public DbSet<BankTransaction> BankTransactions { get; set; }
         public DbSet<GoldTransactionEntity> GoldTransactions { get; set; }

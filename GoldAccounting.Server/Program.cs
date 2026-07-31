@@ -23,7 +23,12 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
     
-    // Seed default market prices if empty
+        // Seed default admin user
+        if (!db.UserAccounts.Any())
+        {
+            db.UserAccounts.Add(new UserAccount { Username = "admin", Password = "admin123", FullName = "مدیر سیستم", Role = "Admin", Token = "TOKEN-ADMIN-12345", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            db.SaveChanges();
+        }
     if (!db.MarketPrices.Any())
     {
         db.MarketPrices.Add(new MarketPrice { Key = "gold18", Val = 18665400, Ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });

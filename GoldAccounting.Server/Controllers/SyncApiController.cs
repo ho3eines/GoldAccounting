@@ -20,9 +20,17 @@ namespace GoldAccounting.Server.Controllers
         [HttpPost("push")]
         public IActionResult PushSync([FromBody] SyncPayload payload)
         {
-            if (payload == null || string.IsNullOrEmpty(payload.TransferCode))
+            // احراز هویت توکن اندروید
+            string authHeader = Request.Headers["Authorization"].FirstOrDefault() ?? "";
+            string token = authHeader.StartsWith("Bearer ") ? authHeader.Substring(7) : payload.Token;
+
+            if (!string.IsNullOrEmpty(token))
             {
-                return BadRequest(new { status = "error", message = "کد انتقال معتبر نیست." });
+                var user = _db.UserAccounts.FirstOrDefault(u => u.Token == token);
+                if (user == null)
+                {
+                    return Unauthorized(new { status = "error", message = "توکن احراز هویت نامعتبر است. لطفا در تنظیمات اندروید دوباره لاگین کنید." });
+                }
             }
 
             var existingLog = _db.SyncLogs.FirstOrDefault(s => s.TransferCode == payload.TransferCode);
@@ -238,6 +246,7 @@ namespace GoldAccounting.Server.Controllers
     {
         public string TransferCode { get; set; } = string.Empty;
         public string DeviceId { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
         public List<InvoiceDto>? Invoices { get; set; }
         public List<CheckDto>? Checks { get; set; }
         public List<CashDto>? CashTransactions { get; set; }
