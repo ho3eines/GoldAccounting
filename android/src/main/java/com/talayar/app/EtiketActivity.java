@@ -31,7 +31,15 @@ public class EtiketActivity extends A {
     private LinearLayout list;
     private EditText eSearch;
     private int filter = 0;          // 0=همه 1=به‌روزشده‌ها 2=بازه شناسه 3=بازه وزن
+    private int stFilter = 0;        // 0=همه 1=موجود 2=فروخته‌شده 3=خارج
     private long rngA = 0, rngB = 0; // بازهٔ شناسه یا وزن(میلی‌گرم)
+
+    static String statusName(String st) {
+        if ("stock".equals(st)) return "موجود";
+        if ("sold".equals(st)) return "فروخته‌شده";
+        if ("out".equals(st)) return "خارج‌شده";
+        return st;
+    }
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -57,14 +65,24 @@ public class EtiketActivity extends A {
                 refresh();
             }
         }));
+        find.addView(space(2));
+        find.addView(chipsRow(new String[]{"همهٔ وضعیت‌ها", "موجود", "فروخته‌شده", "خارج‌شده"}, 0, new OnIdx() {
+            public void ok(int i) { stFilter = i; refresh(); }
+        }));
         body.addView(find);
 
         LinearLayout add = card();
-        addBtn(add, btn("＋ اتیکت جدید", new Tap() {
+        LinearLayout ar = h();
+        ar.addView(btn("＋ اتیکت جدید", new Tap() {
             public void go() {
                 editDlg(EtiketActivity.this, 0, new Tap() { public void go() { refreshAll(); } });
             }
-        }));
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        ar.addView(wspace(8));
+        ar.addView(gbtn("📡 تگ‌های RFID", new Tap() {
+            public void go() { rfidSheet(); }
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        add.addView(ar);
         body.addView(add);
 
         list = v();
@@ -146,6 +164,8 @@ public class EtiketActivity extends A {
             long upd = Db.cl(c, "updated_ts");
             long cts = Db.cl(c, "cts");
 
+            String st = Db.cs(c, "status");
+            if (st.length() == 0) st = "stock";
             if (q.length() > 0) {
                 String hay = U.en(code + " " + name);
                 if (!hay.contains(q)) continue;
@@ -153,6 +173,9 @@ public class EtiketActivity extends A {
             if (filter == 1 && !(upd > cts + 60000)) continue;
             if (filter == 2 && rngA > 0 && rngB > 0 && (id < rngA || id > rngB)) continue;
             if (filter == 3 && (w < rngA || w > rngB)) continue;
+            if (stFilter == 1 && !"stock".equals(st)) continue;
+            if (stFilter == 2 && !"sold".equals(st)) continue;
+            if (stFilter == 3 && !"out".equals(st)) continue;
 
             any = true;
             LinearLayout card = card(dp(10));
@@ -161,6 +184,7 @@ public class EtiketActivity extends A {
                     new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
             if (photo.length() > 0) top.addView(tv(" 🖼 ", U.TXT, 12, false));
             if (rfid.length() > 0) top.addView(tv(" 📡 ", U.TXT, 12, false));
+            if (!"stock".equals(st)) top.addView(badge(statusName(st), false));
             if (upd > cts + 60000) top.addView(badge("به‌روزشده", true));
             card.addView(top);
             LinearLayout sub = h();
@@ -184,6 +208,103 @@ public class EtiketActivity extends A {
             e.addView(tv("اتیکتی یافت نشد — با دکمهٔ «اتیکت جدید» بسازید.", U.SUB, 13, false));
             list.addView(e);
         }
+    }
+
+    // ---------- تگ‌های RFID: لیست، جستجو و ارسال ----------
+    private void rfidSheet() {
+        final LinearLayout box = v();
+        box.setPadding(dp(16), dp(14), dp(16), dp(10));
+        box.addView(tv("📡 تگ‌های RFID اتیکت‌ها", U.GOLD, 16, true));
+        box.addView(tv("جستجو بر اساس تگ یا کد کار؛ برای مشخصات کامل (با تصویر) روی سطر بزنید.", U.SUB, 11, false));
+        box.addView(space(6));
+        final EditText eQ = in("جستجوی RFID یا کد کار…", false);
+        box.addView(eQ);
+        box.addView(space(6));
+        final LinearLayout rows = v();
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(rows);
+        box.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(300)));
+        box.addView(space(6));
+        eQ.addTextChangedListener(new TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int a, int b2, int c) {}
+            public void onTextChanged(CharSequence s, int a, int b2, int c) { fillRfidRows(rows, U.en(U.str(eQ)).trim()); }
+            public void afterTextChanged(Editable s) {}
+        });
+        final android.app.AlertDialog d = sheet(box);
+        LinearLayout br = h();
+        br.setGravity(android.view.Gravity.CENTER);
+        br.addView(btn("📤 ارسال لیست تگ‌ها", new Tap() {
+            public void go() { shareRfidList(); }
+        }), new LinearLayout.LayoutParams(dp(150), ViewGroup.LayoutParams.WRAP_CONTENT));
+        br.addView(wspace(10));
+        br.addView(gbtn("بستن", new Tap() { public void go() { d.dismiss(); } }),
+                new LinearLayout.LayoutParams(dp(100), ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(br);
+        fillRfidRows(rows, "");
+    }
+
+    private void fillRfidRows(LinearLayout rows, String q) {
+        rows.removeAllViews();
+        Cursor c = db.r().rawQuery(
+                "SELECT id, code, name, wmw, rfid FROM etiket WHERE rfid IS NOT NULL AND rfid != '' ORDER BY code LIMIT 400", null);
+        int n = 0;
+        while (c.moveToNext()) {
+            final int id = c.getInt(0);
+            String code = c.getString(1);
+            String name = c.getString(2) == null ? "" : c.getString(2);
+            int w = c.getInt(3);
+            final String tag = c.getString(4);
+            if (q.length() > 0) {
+                String hay = U.en(tag + " " + code + " " + name);
+                if (!hay.contains(q)) continue;
+            }
+            n++;
+            LinearLayout r = h();
+            LinearLayout mid = v();
+            mid.addView(tv(tag, U.BLUE, 13, true));
+            mid.addView(tv(U.dig(code) + " — " + name + " • " + U.gs(w), U.SUB, 11, false));
+            r.addView(mid, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            TextView vw = tv("مشاهده ›", U.GOLD, 12, true);
+            r.addView(vw);
+            r.setPadding(0, dp(5), 0, dp(5));
+            r.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    Intent it = new Intent(EtiketActivity.this, EtiketViewActivity.class);
+                    it.putExtra("id", id);
+                    startActivity(it);
+                }
+            });
+            rows.addView(r);
+            View dv = new View(this);
+            dv.setBackgroundColor(0xFF1E2632);
+            rows.addView(dv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
+        }
+        c.close();
+        if (n == 0) rows.addView(tv(q.length() > 0 ? "تگی مطابق جستجو نیست." : "تگ RFID ثبت نشده — از ویرایش اتیکت، کد تگ را بخوانید/وارد کنید.", U.SUB, 12, false));
+    }
+
+    /** ارسال لیست تگ‌های RFID خوانده‌شده (متن ساده) */
+    private void shareRfidList() {
+        Cursor c = db.r().rawQuery(
+                "SELECT code, name, wmw, rfid FROM etiket WHERE rfid IS NOT NULL AND rfid != '' ORDER BY code", null);
+        StringBuilder sb = new StringBuilder();
+        sb.append("لیست تگ‌های RFID — طلایار\n").append(U.dig(Jal.today())).append("\n\n");
+        int n = 0;
+        while (c.moveToNext()) {
+            n++;
+            sb.append(n).append(". ").append(c.getString(3))
+                    .append(" — ").append(U.dig(c.getString(0)))
+                    .append(" ").append(c.getString(1) == null ? "" : c.getString(1))
+                    .append(" (").append(U.gs(c.getInt(2))).append(")\n");
+        }
+        c.close();
+        if (n == 0) { U.toast(this, "تگی برای ارسال نیست"); return; }
+        sb.append("\n").append("مجموع: ").append(U.intFa(n)).append(" تگ");
+        Intent it = new Intent(Intent.ACTION_SEND);
+        it.setType("text/plain");
+        it.putExtra(Intent.EXTRA_SUBJECT, "لیست تگ‌های RFID طلایار");
+        it.putExtra(Intent.EXTRA_TEXT, sb.toString());
+        startActivity(Intent.createChooser(it, "ارسال لیست تگ‌های RFID"));
     }
 
     // ---------- دیالوگ افزودن/ویرایش (اشتراکی با EtiketViewActivity) ----------

@@ -114,7 +114,7 @@ public class SettingsActivity extends A {
 
         LinearLayout c4 = card();
         c4.addView(tv("درباره", U.GOLD, 15, true));
-        c4.addView(kv("نسخه", "۲٫۰"));
+        c4.addView(kv("نسخه", "۲٫۱"));
         c4.addView(kv("حالت", "آفلاین کامل + دریافت اختیاری قیمت مستقیم از API عمومی (بدون سرور میانی)"));
         c4.addView(kv("داده‌ها", "ذخیره محلی روی همین گوشی (SQLite)"));
         body.addView(c4);

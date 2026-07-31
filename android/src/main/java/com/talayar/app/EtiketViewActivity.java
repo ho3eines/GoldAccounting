@@ -26,7 +26,7 @@ import java.io.FileOutputStream;
 /** پروندهٔ اتیکت — مشخصات از شناسهٔ کار (با/بدون تصویر)، مزنه، RFID، کارت بارکد، اشتراک */
 public class EtiketViewActivity extends A {
     private int eid;
-    private String code = "", name = "", mez = "", rfid = "", photo = "";
+    private String code = "", name = "", mez = "", rfid = "", photo = "", status = "stock";
     private int w = 0;
     private long updTs = 0, cts = 0;
 
@@ -47,7 +47,7 @@ public class EtiketViewActivity extends A {
     }
 
     private boolean load() {
-        Cursor c = db.r().rawQuery("SELECT code,name,wmw,mezane,rfid,photo,updated_ts,cts FROM etiket WHERE id=?",
+        Cursor c = db.r().rawQuery("SELECT code,name,wmw,mezane,rfid,photo,updated_ts,cts,status FROM etiket WHERE id=?",
                 new String[]{"" + eid});
         boolean ok = c.moveToFirst();
         if (ok) {
@@ -59,6 +59,8 @@ public class EtiketViewActivity extends A {
             photo = c.getString(5) == null ? "" : c.getString(5);
             updTs = c.getLong(6);
             cts = c.getLong(7);
+            status = c.getString(8);
+            if (status == null || status.length() == 0) status = "stock";
         }
         c.close();
         return ok;
@@ -72,6 +74,7 @@ public class EtiketViewActivity extends A {
         head.addView(tv(name.length() > 0 ? name : "بدون نام", U.GOLD, 18, true));
         LinearLayout badges = h();
         badges.addView(badge("کد کار " + U.dig(code), true));
+        if (!"stock".equals(status)) { badges.addView(wspace(6)); badges.addView(badge(EtiketActivity.statusName(status), false)); }
         if (photo.length() > 0) { badges.addView(wspace(6)); badges.addView(badge("دارای عکس", true)); }
         if (rfid.length() > 0) { badges.addView(wspace(6)); badges.addView(badge("RFID", true)); }
         if (updTs > cts + 60000) { badges.addView(wspace(6)); badges.addView(badge("به‌روزشده", true)); }
@@ -108,11 +111,35 @@ public class EtiketViewActivity extends A {
         info.addView(kv("وزن", U.gs(w) + " (" + U.mwG(w) + ")", U.TXT));
         info.addView(kv("مزنه", mez.length() > 0 ? mez : "—"));
         info.addView(kv("RFID", rfid.length() > 0 ? rfid : "—"));
+        info.addView(kv("وضعیت", EtiketActivity.statusName(status),
+                "stock".equals(status) ? U.OK : 0xFFFFA9B1));
         info.addView(kv("آخرین به‌روزرسانی", Jal.of(updTs).fa(), U.SUB));
         body.addView(info);
 
         // ── عملیات ──
         LinearLayout ops = card();
+        if ("stock".equals(status)) {
+            LinearLayout rs = h();
+            rs.addView(btn("📜 ثبت سند فروش این اتیکت", new Tap() {
+                public void go() {
+                    Intent it = new Intent(EtiketViewActivity.this, DocNewActivity.class);
+                    it.putExtra("type", "etiket_sell");
+                    it.putExtra("etiket", eid);
+                    startActivity(it);
+                }
+            }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            rs.addView(wspace(8));
+            rs.addView(gbtn("خروج از انبار", new Tap() {
+                public void go() {
+                    Intent it = new Intent(EtiketViewActivity.this, DocNewActivity.class);
+                    it.putExtra("type", "etiket_out");
+                    it.putExtra("etiket", eid);
+                    startActivity(it);
+                }
+            }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            ops.addView(rs);
+            ops.addView(space(6));
+        }
         LinearLayout r1 = h();
         r1.addView(btn("✎ به‌روزرسانی مزنه", new Tap() { public void go() { updMezane(); } }),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -127,7 +154,7 @@ public class EtiketViewActivity extends A {
         r2.addView(wspace(8));
         r2.addView(gbtn("ویرایش ✎", new Tap() {
             public void go() {
-                EtiketActivity.editDlg(EtiketViewActivity.this, eid, new Tap() { public void go() { } });
+                EtiketActivity.editDlg(EtiketViewActivity.this, eid, new Tap() { public void go() { onResume(); } });
             }
         }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         ops.addView(r2);

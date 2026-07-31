@@ -94,6 +94,22 @@ public class DocsActivity extends A {
         }
     }
 
+    /** اتیکت‌های مرتبط با سند (خط‌های «اتیکت #<num>») را به حالت موجود برمی‌گرداند */
+    private void revertEtikets(SQLiteDatabase w, String txt) {
+        int p = txt.indexOf("اتیکت #");
+        while (p >= 0) {
+            int i = p + 7;
+            while (i < txt.length() && txt.charAt(i) >= '0' && txt.charAt(i) <= '9') i++;
+            if (i > p + 7) {
+                android.content.ContentValues ecv = new android.content.ContentValues();
+                ecv.put("status", "stock");
+                ecv.put("updated_ts", System.currentTimeMillis());
+                w.update("etiket", ecv, "id=?", new String[]{txt.substring(p + 7, i)});
+            }
+            p = txt.indexOf("اتیکت #", i);
+        }
+    }
+
     private String rowsText(int id) {
         Cursor rc = db.r().rawQuery("SELECT txt FROM doc_rows WHERE doc_id=?", new String[]{"" + id});
         StringBuilder sb = new StringBuilder();
@@ -127,6 +143,8 @@ public class DocsActivity extends A {
         SQLiteDatabase w = db.w();
         w.beginTransaction();
         try {
+            // برگشت وضعیت اتیکت‌های این سند به «موجود» قبل از حذف
+            revertEtikets(w, rowsText(id));
             w.delete("doc_rows", "doc_id=?", new String[]{"" + id});
             w.delete("assets_ledger", "doc_id=?", new String[]{"" + id});
             w.delete("bank_tx", "doc_id=?", new String[]{"" + id});

@@ -152,7 +152,7 @@ public class MainActivity extends A {
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); } },
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); } });
 
-        TextView ver = tv("طلایار نسخهٔ ۲٫۰ • آفلاین + دریافت اختیاری قیمت", 0xFF556275, 11, false);
+        TextView ver = tv("طلایار نسخهٔ ۲٫۱ • آفلاین + دریافت اختیاری قیمت", 0xFF556275, 11, false);
         ver.setGravity(Gravity.CENTER);
         ver.setPadding(0, dp(18), 0, 0);
         col.addView(ver);

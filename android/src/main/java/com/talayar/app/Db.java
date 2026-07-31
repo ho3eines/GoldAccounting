@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 /** لایهٔ داده — کاملاً محلی و آفلاین (SQLite) — نسخهٔ ۲ (اسناد مرکزی + کد حساب + دارایی‌ها) */
 public class Db extends SQLiteOpenHelper {
-    private static final int VER = 3;
+    private static final int VER = 4;
     private static Db inst;
     public static synchronized Db get(Context c) {
         if (inst == null) inst = new Db(c.getApplicationContext());
@@ -61,10 +61,15 @@ public class Db extends SQLiteOpenHelper {
         db.execSQL("UPDATE customers SET code=id WHERE code=0 OR code IS NULL");
         seedDefs(db);
         v3(db);
+        v4(db);
     }
     private void v3(SQLiteDatabase db) {
         safeAlter(db, "ALTER TABLE gold_tx ADD COLUMN doc_id INTEGER DEFAULT 0");
         safeAlter(db, "CREATE INDEX idx_gold_doc ON gold_tx(doc_id)");
+    }
+    private void v4(SQLiteDatabase db) {
+        // وضعیت اتیکت: stock | sold | out
+        safeAlter(db, "ALTER TABLE etiket ADD COLUMN status TEXT DEFAULT 'stock'");
     }
     private void safeAlter(SQLiteDatabase db, String sql) {
         try { db.execSQL(sql); } catch (Exception ignored) {}
@@ -73,6 +78,7 @@ public class Db extends SQLiteOpenHelper {
     @Override public void onUpgrade(SQLiteDatabase db, int o, int n) {
         if (o < 2) { createV2TablesIfMissing(db); seedDefs(db); }
         if (o < 3) v3(db);
+        if (o < 4) v4(db);
     }
     private void createV2TablesIfMissing(SQLiteDatabase db) {
         try { db.execSQL("CREATE TABLE defs (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, name TEXT, x1 INTEGER, x2 INTEGER, x3 TEXT, cts INTEGER)"); } catch (Exception e) {}

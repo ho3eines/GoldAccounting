@@ -25,6 +25,7 @@ public class DocNewActivity extends A {
             {"🏦 بانکی", "bank_income,bank_expense,bank_recv,bank_pay"},
             {"📄 چک", "check_recv,check_pay"},
             {"🏷️ تخفیف", "disc_us,disc_cust"},
+            {"🏷 اتیکت", "etiket_buy,etiket_sell,etiket_in,etiket_out"},
     };
     static final String[][] TYPES = {
             {"gold_buy","خرید طلا/آبشده از مشتری"},{"gold_sell","فروش طلا/آبشده به مشتری"},
@@ -49,6 +50,8 @@ public class DocNewActivity extends A {
             {"bank_recv","دریافت از مشتری به بانک"},{"bank_pay","پرداخت به مشتری از بانک"},
             {"check_recv","چک دریافتی (ورود چک)"},{"check_pay","چک پرداختنی (خروج چک)"},
             {"disc_us","تخفیف ما به مشتری"},{"disc_cust","تخفیف مشتری به ما"},
+            {"etiket_buy","خرید اتیکت"},{"etiket_sell","فروش اتیکت (خروج از انبار)"},
+            {"etiket_in","ورود اتیکت به انبار"},{"etiket_out","خروج اتیکت از انبار"},
     };
 
     static String typeLabel(String key) {
@@ -66,6 +69,9 @@ public class DocNewActivity extends A {
     private String dateJ;
 
     private TextView typeTv, custTv, defTv, bankTv, dateTv;
+    private TextView etiketTv;
+    private int etiketId = 0, etiketW = 0;
+    private String etiketCode = "", etiketName = "";
     private EditText eW, eKar, eCount, eQty, eMoney, eRate, eWage, eNo, eDue, eNote;
     private LinearLayout formBox, previewBox;
 
@@ -146,6 +152,8 @@ public class DocNewActivity extends A {
             typeTv.setText(typeLabel(type));
             buildForm();
         }
+        int e0 = it0.getIntExtra("etiket", 0);
+        if (e0 > 0 && needEtiket()) setEtiket(e0);
         preview();
     }
 
@@ -173,7 +181,8 @@ public class DocNewActivity extends A {
     private boolean is(String s) { return type.startsWith(s); }
     private boolean oneOf(String... ks) { for (String k : ks) if (type.equals(k)) return true; return false; }
 
-    private boolean needCustomer() { return !oneOf("gold_in","gold_out","coin_in","coin_out","bull_in","bull_out","work_in","work_out","cash_income","cash_expense","cash_in","cash_out","bank_income","bank_expense"); }
+    private boolean needCustomer() { return !oneOf("gold_in","gold_out","coin_in","coin_out","bull_in","bull_out","work_in","work_out","cash_income","cash_expense","cash_in","cash_out","bank_income","bank_expense","etiket_in","etiket_out"); }
+    private boolean needEtiket() { return is("etiket"); }
     private boolean needWeight() { return is("gold") || is("sil") || is("work"); }
     private boolean needKarat()  { return is("gold") || is("work"); }
     private boolean needDef()    { return is("coin") || is("bull") || is("cur") || is("sil") || is("work"); }
@@ -199,9 +208,10 @@ public class DocNewActivity extends A {
         return oneOf("gold_buy","gold_sell","coin_buy","coin_sell","bull_buy","bull_sell","cur_buy","cur_sell",
                 "sil_buy","sil_sell","work_buy","work_sell",
                 "cash_income","cash_expense","cash_in","cash_out","cash_talab","cash_bedehi",
-                "bank_income","bank_expense","bank_recv","bank_pay","check_recv","check_pay","disc_us","disc_cust");
+                "bank_income","bank_expense","bank_recv","bank_pay","check_recv","check_pay","disc_us","disc_cust",
+                "etiket_buy","etiket_sell");
     }
-    private boolean needSettle()  { return oneOf("gold_buy","gold_sell","coin_buy","coin_sell","bull_buy","bull_sell","cur_buy","cur_sell","sil_buy","sil_sell","work_buy","work_sell"); }
+    private boolean needSettle()  { return oneOf("gold_buy","gold_sell","coin_buy","coin_sell","bull_buy","bull_sell","cur_buy","cur_sell","sil_buy","sil_sell","work_buy","work_sell","etiket_buy","etiket_sell"); }
     private boolean needBank()    { return is("bank") || is("check") || (needSettle() && settle == 2); }
     private boolean needCheck()   { return is("check"); }
     private boolean needWage()    { return oneOf("work_buy","work_sell"); }
@@ -211,7 +221,17 @@ public class DocNewActivity extends A {
 
     private void buildForm() {
         formBox.removeAllViews();
+        etiketTv = null;
 
+        if (needEtiket()) {
+            formBox.addView(label("اتیکت"));
+            LinearLayout rr = h();
+            String dt = etiketId > 0 ? U.dig(etiketCode) + " — " + etiketName + " • " + U.gs(etiketW) : "انتخاب اتیکت…";
+            etiketTv = tvM(dt, U.TXT, 14);
+            rr.addView(etiketTv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            rr.addView(gbtn("انتخاب", new Tap() { public void go() { pickEtiket(); } }));
+            formBox.addView(rr);
+        }
         if (needDef()) {
             formBox.addView(label(defTitle()));
             LinearLayout rr = h();
@@ -298,6 +318,44 @@ public class DocNewActivity extends A {
         });
     }
 
+    /** انتخاب اتیکت — برای فروش/خروج فقط اتیکت‌های موجودی */
+    private void pickEtiket() {
+        String cond = oneOf("etiket_sell", "etiket_out") ? " WHERE status='stock'" : "";
+        Cursor c = db.r().rawQuery("SELECT id, code, name, wmw FROM etiket" + cond + " ORDER BY code LIMIT 400", null);
+        final java.util.ArrayList<Integer> ids = new java.util.ArrayList<Integer>();
+        final java.util.ArrayList<String> dis = new java.util.ArrayList<String>();
+        while (c.moveToNext()) {
+            ids.add(Integer.valueOf(c.getInt(0)));
+            dis.add(U.dig(c.getString(1)) + " — " + c.getString(2) + " • " + U.gs(c.getInt(3)));
+        }
+        c.close();
+        if (dis.isEmpty()) {
+            msg("اتیکتی موجود نیست", oneOf("etiket_sell", "etiket_out")
+                    ? "اتیکت با وضعیت «موجود» پیدا نشد."
+                    : "ابتدا از بخش «اتیکت‌ها» یک اتیکت بسازید.");
+            return;
+        }
+        String[] arr = new String[dis.size()];
+        for (int i = 0; i < dis.size(); i++) arr[i] = (String) dis.get(i);
+        choose("انتخاب اتیکت", arr, new OnIdx() {
+            public void ok(int i) { setEtiket(((Integer) ids.get(i)).intValue()); }
+        });
+    }
+
+    void setEtiket(int id) {
+        Cursor c = db.r().rawQuery("SELECT code, name, wmw FROM etiket WHERE id=?", new String[]{"" + id});
+        if (c.moveToFirst()) {
+            etiketId = id;
+            etiketCode = c.getString(0);
+            etiketName = c.getString(1) == null ? "" : c.getString(1);
+            etiketW = c.getInt(2);
+            if (etiketTv != null)
+                etiketTv.setText(U.dig(etiketCode) + " — " + etiketName + " • " + U.gs(etiketW));
+        }
+        c.close();
+        preview();
+    }
+
     interface OnDef { void ok(int id, String name); }
     void defPicker(String kind, String title, final OnDef cb) {
         Cursor c = db.defsOf(kind);
@@ -355,6 +413,9 @@ public class DocNewActivity extends A {
         String who = cname != null && cname.length() > 0 ? cname : "فروشگاه";
         String L1 = typeLabel(type);
         L.add(L1 + (cid > 0 ? " — طرف حساب: " + who : ""));
+        if (needEtiket() && etiketId > 0) {
+            L.add("اتیکت #" + etiketId + " («" + U.dig(etiketCode) + "») " + etiketName + " — " + U.gs(etiketW));
+        }
         if (is("gold") && eW != null) {
             int w = U.parseMw(U.str(eW));
             if (w > 0) L.add(U.gs(w) + " طلای " + U.karatName(karat));
@@ -391,6 +452,7 @@ public class DocNewActivity extends A {
     private void save() {
         if (type.length() == 0) { U.toast(this, "نوع سند را انتخاب کنید"); return; }
         if (needCustomer() && cid <= 0) { msg("طرف حساب لازم است", "برای این نوع سند باید یک مشتری/حساب انتخاب شود."); return; }
+        if (needEtiket() && etiketId <= 0) { msg("اتیکت؟", "ابتدا اتیکت موردنظر را انتخاب کنید."); return; }
         if (needDef() && defId <= 0 && !is("gold")) { msg(defTitle() + "؟", "ابتدا «" + defTitle() + "» را انتخاب کنید."); return; }
         if (needBank() && bankId <= 0) { msg("بانک؟", "بانک را انتخاب کنید."); return; }
         long m = amountMoney();
@@ -580,6 +642,25 @@ public class DocNewActivity extends A {
         // تخفیف
         else if (type.equals("disc_us"))   { Post.cust(db, docId, dateJ, cid, -m, 0, d1 + "تخفیف ما به مشتری " + U.money(m)); }
         else if (type.equals("disc_cust")) { Post.cust(db, docId, dateJ, cid, +m, 0, d1 + "تخفیف مشتری به ما " + U.money(m)); }
+        // اتیکت — وضعیت + موجودی کارساختهٔ وزنی + تسویهٔ مالی
+        else if (is("etiket")) {
+            boolean inflow = type.equals("etiket_buy") || type.equals("etiket_in");
+            String st = type.equals("etiket_sell") ? "sold" : type.equals("etiket_out") ? "out" : "stock";
+            android.content.ContentValues ecv = new android.content.ContentValues();
+            ecv.put("status", st);
+            ecv.put("updated_ts", System.currentTimeMillis());
+            if (!inflow) ecv.put("rfid", ""); // اتیکت خارج/فروخته‌شده → حذف RFID
+            db.w().update("etiket", ecv, "id=?", new String[]{"" + etiketId});
+            Post.asset(db, docId, dateJ, "stock", "work_mg", inflow ? +etiketW : -etiketW, 750, 0,
+                    d1 + "اتیکت " + U.dig(etiketCode) + " (" + etiketName + ")");
+            if (type.equals("etiket_buy")) {
+                Post.cust(db, docId, dateJ, cid, settleMoney(-1, m), 0, d1 + "خرید اتیکت «" + U.dig(etiketCode) + "» از مشتری");
+                settleOut(docId, m);
+            } else if (type.equals("etiket_sell")) {
+                Post.cust(db, docId, dateJ, cid, settleMoney(+1, m), 0, d1 + "فروش اتیکت «" + U.dig(etiketCode) + "» به مشتری");
+                settleIn(docId, m);
+            }
+        }
     }
 
     private String whoTxt(long n) { return U.intFa(n) + " عدد " + defName; }
