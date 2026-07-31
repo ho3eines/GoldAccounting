@@ -13,7 +13,7 @@ ANDROID_JAR_LITE=$T/android-lite        # jar حذف‌انوتیشن‌شده �
 ANDROID_JAR=$T/platforms/android-21/android.jar   # jar اصلی برای لینک منابع
 APK_RAW=$ROOT/talayar-raw.apk
 APK_FULL=$ROOT/talayar-full.apk
-APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v1.0.apk
+APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v2.0.apk
 
 echo "== 1/5 aapt2: کامپایل و لینک منابع"
 cd "$ROOT"

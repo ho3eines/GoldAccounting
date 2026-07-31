@@ -124,23 +124,35 @@ public class MainActivity extends A {
 
         // ── منو ──
         col.addView(space(6));
+        menuRow(col, "📜", "ثبت سند جدید", "🗂", "اسناد",
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, DocNewActivity.class)); } },
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, DocsActivity.class)); } });
         menuRow(col, "🧾", "فاکتور جدید", "🔖", "فاکتورها",
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, InvoiceNewActivity.class)); } },
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, InvoicesActivity.class)); } });
+        menuRow(col, "🌐", "قیمت‌های بازار", "⚖️", "دارایی‌ها و تراز",
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, PricesActivity.class)); } },
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, AssetsActivity.class)); } });
         menuRow(col, "🛍️", "خرید طلا", "⚖️", "طلا و آبشده",
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, BuyActivity.class)); } },
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, GoldActivity.class)); } });
-        menuRow(col, "👥", "مشتریان", "📦", "اجناس و انبار",
+        menuRow(col, "👥", "حساب‌ها / مشتریان", "📦", "اجناس و انبار",
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, CustomersActivity.class)); } },
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, ItemsActivity.class)); } });
+        menuRow(col, "🏷", "اتیکت‌ها", "📄", "چک‌ها",
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, EtiketActivity.class)); } },
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, ChecksActivity.class)); } });
         menuRow(col, "📈", "نرخ طلا", "📊", "گزارش‌ها",
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, RateActivity.class)); } },
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, ReportsActivity.class)); } });
-        menuRow(col, "💰", "صندوق", "⚙️", "تنظیمات",
+        menuRow(col, "💰", "صندوق", "🗄", "کدینگ‌ها",
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, CashActivity.class)); } },
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, DefsActivity.class)); } });
+        menuRow(col, "⚙️", "تنظیمات", "ℹ️", "درباره",
+                new Tap() { public void go() { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); } },
                 new Tap() { public void go() { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); } });
 
-        TextView ver = tv("طلایار نسخهٔ ۱٫۰ • کاملاً آفلاین", 0xFF556275, 11, false);
+        TextView ver = tv("طلایار نسخهٔ ۲٫۰ • آفلاین + دریافت اختیاری قیمت", 0xFF556275, 11, false);
         ver.setGravity(Gravity.CENTER);
         ver.setPadding(0, dp(18), 0, 0);
         col.addView(ver);

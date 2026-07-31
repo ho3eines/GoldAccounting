@@ -167,6 +167,26 @@ public final class U {
         t.show();
     }
 
+    // ---------- گرم و سوت ----------
+    /** نمایش وزن به صورت «۱۲ گرم و ۳۵۰ سوت»؛ سوت = هزارم گرم */
+    public static String gs(int wmg) {
+        long w = wmg;
+        boolean neg = w < 0;
+        if (neg) w = -w;
+        long g = w / 1000, s = w % 1000;
+        String out;
+        if (g == 0) out = s == 0 ? "۰ گرم" : intFa(s) + " سوت";
+        else if (s == 0) out = intFa(g) + " گرم";
+        else out = intFa(g) + " گرم و " + intFa(s) + " سوت";
+        return neg ? "-" + out : out;
+    }
+
+    /** نمایش مبلغ به ریال */
+    public static String rial(long toman) { return money(toman * 10) + " ریال"; }
+
+    /** نمایش مبلغ دوتایی: تومان (ریال) — مخصوص ترازها */
+    public static String moneyR(long toman) { return money(toman) + " تومان (" + money(toman * 10) + " ریال)"; }
+
     /** ترکیب امن چند بخش برای نمایش */
     public static String join(String sep, String... parts) {
         StringBuilder b = new StringBuilder();

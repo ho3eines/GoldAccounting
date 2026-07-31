@@ -1,5 +1,6 @@
 package com.talayar.app;
 
+import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.view.View;
@@ -7,57 +8,30 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** پرونده مشتری: مانده، تسویه، گردش حساب */
+/** پرونده مشتری: مانده (نقدی/طلایی/سکه/ارز/شمش/نقره/کارساخته)، تسویه، گردش، مانده تا تاریخ */
 public class CustomerViewActivity extends A {
     private int cid;
+    private int code = 0;
     private String name = "";
+    private String phone = "", grp = "", addr = "", note = "";
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         cid = getIntent().getIntExtra("id", 0);
-        Cursor c = db.r().rawQuery("SELECT name, phone, note FROM customers WHERE id=?", new String[]{"" + cid});
-        String phone = "", note = "";
-        if (c.moveToFirst()) { name = c.getString(0); phone = c.getString(1); note = c.getString(2); }
-        c.close();
-        final String ph = phone, nt = note;
+        loadCustomer();
         scaffold("پرونده مشتری", true);
 
-        LinearLayout head = card();
-        head.addView(tv(name, U.GOLD, 19, true));
-        if (ph.length() > 0) head.addView(tv("☎ " + U.dig(ph), U.SUB, 13, false));
-        if (nt.length() > 0) head.addView(tv(nt, U.SUB, 12, false));
-        body.addView(head);
-        refreshBody();
-        LinearLayout ops = card();
-        LinearLayout row = h();
-        row.addView(btn("دریافت وجه", new Tap() { public void go() { payCash(); } }),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        row.addView(wspace(8));
-        row.addView(btn("دریافت طلا", new Tap() { public void go() { payGold(); } }),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        ops.addView(row);
-        ops.addView(space(6));
-        LinearLayout row2 = h();
-        row2.addView(gbtn("ویرایش نام", new Tap() {
-            public void go() {
-                input("ویرایش نام مشتری", "نام", name, false, new OnText() {
-                    public void ok(String s) {
-                        if (s.length() == 0) return;
-                        android.content.ContentValues cv = new android.content.ContentValues();
-                        cv.put("name", s);
-                        db.w().update("customers", cv, "id=?", new String[]{"" + cid});
-                        name = s;
-                        U.toast(CustomerViewActivity.this, "ذخیره شد");
-                        recreate();
-                    }
-                });
-            }
-        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        row2.addView(wspace(8));
-        row2.addView(dbtn("حذف مشتری", new Tap() { public void go() { delCustomer(); } }),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        ops.addView(row2);
-        body.addView(ops);
+        headBox = card();
+        body.addView(headBox);
+        fillHead();
+
+        balBox = cardHi();
+        body.addView(balBox);
+        fillBalance();
+
+        opsBox = card();
+        body.addView(opsBox);
+        fillOps();
 
         TextView lt = tv("گردش حساب", U.GOLD, 15, true);
         lt.setPadding(dp(4), dp(10), 0, dp(4));
@@ -67,15 +41,41 @@ public class CustomerViewActivity extends A {
         fillLedger();
     }
 
-    private LinearLayout balanceBox;
-    private LinearLayout ledgerBox;
+    private void loadCustomer() {
+        Cursor c = db.r().rawQuery("SELECT name, phone, note, code, grp, address FROM customers WHERE id=?",
+                new String[]{"" + cid});
+        if (c.moveToFirst()) {
+            name = c.getString(0);
+            phone = c.getString(1) == null ? "" : c.getString(1);
+            note = c.getString(2) == null ? "" : c.getString(2);
+            code = c.getInt(3);
+            grp = c.getString(4) == null ? "" : c.getString(4);
+            addr = c.getString(5) == null ? "" : c.getString(5);
+        }
+        c.close();
+    }
 
-    private void refreshBody() {
-        if (body == null) return;
+    private LinearLayout headBox, balBox, opsBox, ledgerBox;
+
+    private void fillHead() {
+        headBox.removeAllViews();
+        headBox.addView(tv(name, U.GOLD, 19, true));
+        StringBuilder inf = new StringBuilder();
+        inf.append("کد حساب ").append(U.dig(code + ""));
+        if (grp.length() > 0) inf.append(" • گروه ").append(grp);
+        headBox.addView(tv(inf.toString(), U.SUB, 12, false));
+        if (phone.length() > 0) headBox.addView(tv("☎ " + U.dig(phone), U.SUB, 13, false));
+        if (addr.length() > 0) headBox.addView(tv("📍 " + addr, U.SUB, 12, false));
+        if (note.length() > 0) headBox.addView(tv(note, U.SUB, 12, false));
     }
 
     private long[] sums() {
-        Cursor c = db.r().rawQuery("SELECT COALESCE(SUM(cash),0), COALESCE(SUM(goldmw),0) FROM customer_tx WHERE cid=?",
+        return sumsUpTo(null);
+    }
+    private long[] sumsUpTo(String maxDate) {
+        String cond = "cid=?";
+        if (maxDate != null) cond += " AND date_j <= '" + maxDate + "'";
+        Cursor c = db.r().rawQuery("SELECT COALESCE(SUM(cash),0), COALESCE(SUM(goldmw),0) FROM customer_tx WHERE " + cond,
                 new String[]{"" + cid});
         long[] r = {0, 0};
         if (c.moveToFirst()) { r[0] = c.getLong(0); r[1] = c.getLong(1); }
@@ -83,32 +83,133 @@ public class CustomerViewActivity extends A {
         return r;
     }
 
-    @Override protected void onResume() { super.onResume(); if (ledgerBox != null) { fillLedger(); fillBalance(); } }
+    @Override protected void onResume() {
+        super.onResume();
+        if (ledgerBox != null) {
+            loadCustomer();
+            fillHead();
+            fillBalance();
+            fillLedger();
+        }
+    }
 
     private void fillBalance() {
         long[] s = sums();
-        // جعبه مانده (بازسازی)
-        if (balanceBox != null) body.removeView(balanceBox);
-        balanceBox = cardHi();
+        balBox.removeAllViews();
+        balBox.addView(tv("مانده حساب", U.GOLD, 14, true));
+        // نقدی — دو واحد تومان و ریال
+        String cashTxt;
+        int cashCol;
+        if (s[0] > 0) { cashTxt = U.money(s[0]) + " تومان (" + U.money(s[0] * 10) + " ریال) بدهکار"; cashCol = 0xFFFFCC80; }
+        else if (s[0] < 0) { cashTxt = U.money(-s[0]) + " تومان (" + U.money(-s[0] * 10) + " ریال) بستانکار"; cashCol = U.OK; }
+        else { cashTxt = "تسویه"; cashCol = U.SUB; }
+        balBox.addView(kv("💰 مانده نقدی/مالی", cashTxt, cashCol));
+        // طلایی — گرم و سوت
+        long g = s[1];
+        String goldTxt = g == 0 ? "—" : U.gs((int) Math.abs(g)) + (g > 0 ? " بدهکار" : " بستانکار") + " (۱۸ معادل)";
+        balBox.addView(kv("⚖️ مانده طلایی", goldTxt, g > 0 ? 0xFFFFCC80 : U.TXT));
+
+        // سایر دارایی‌ها (سکه/شمش/ارز/نقره/کارساخته)
+        Cursor a = db.r().rawQuery(
+                "SELECT asset, SUM(qty) FROM assets_ledger WHERE scope='customer' AND cid=? GROUP BY asset HAVING SUM(qty) != 0",
+                new String[]{"" + cid});
+        boolean any = false;
+        while (a.moveToNext()) {
+            any = true;
+            String asset = a.getString(0);
+            double q = a.getDouble(1);
+            boolean debt = q > 0;
+            String line = Post.fmtQty(asset, Math.abs(q)) + (debt ? " بدهکار" : " بستانکار");
+            balBox.addView(kv(assetIcon(asset) + " " + Post.assetName(db, asset), line, debt ? 0xFFFFCC80 : U.OK));
+        }
+        a.close();
+        if (!any) balBox.addView(tv("سکه/شمش/ارز/نقره/کارساخته‌ای نزد این مشتری ثبت نشده.", U.SUB, 11, false));
+
+        // مانده تا تاریخ
+        LinearLayout r = h();
+        r.addView(gbtn("📅 مانده تا تاریخ مشخص", new Tap() { public void go() { askDateBalance(); } }),
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        balBox.addView(space(4));
+        balBox.addView(r);
+    }
+
+    static String assetIcon(String asset) {
+        if (asset.startsWith("coin")) return "🪙";
+        if (asset.startsWith("bull")) return "🧱";
+        if (asset.startsWith("cur")) return "💵";
+        if (asset.startsWith("sil")) return "🥈";
+        if (asset.startsWith("work")) return "💍";
+        return "▪";
+    }
+
+    private void askDateBalance() {
+        input("مانده «" + name + "» تا تاریخ", "مثل ۱۴۰۵/۰۵/۰۹", Jal.today(), false, new OnText() {
+            public void ok(String s) {
+                String d = U.en(s).trim();
+                if (!d.matches("[0-9]{4}/[0-9]{2}/[0-9]{2}")) { U.toast(CustomerViewActivity.this, "تاریخ را کامل بنویسید (۱۴۰۵/۰۵/۰۹)"); return; }
+                long[] s2 = sumsUpTo(d);
+                StringBuilder m = new StringBuilder();
+                m.append("مانده تا تاریخ ").append(U.dig(d)).append("\n\n");
+                m.append("نقدی: ");
+                if (s2[0] > 0) m.append(U.money(s2[0])).append(" تومان بدهکار");
+                else if (s2[0] < 0) m.append(U.money(-s2[0])).append(" تومان بستانکار");
+                else m.append("تسویه");
+                m.append("\nطلایی (۱۸ معادل): ");
+                if (s2[1] != 0) m.append(U.gs((int) Math.abs(s2[1]))).append(s2[1] > 0 ? " بدهکار" : " بستانکار");
+                else m.append("—");
+                Cursor a = db.r().rawQuery(
+                        "SELECT asset, SUM(qty) FROM assets_ledger WHERE scope='customer' AND cid=? AND date_j <= ? " +
+                        "GROUP BY asset HAVING SUM(qty) != 0",
+                        new String[]{"" + cid, d});
+                while (a.moveToNext()) {
+                    String asset = a.getString(0);
+                    double q = a.getDouble(1);
+                    m.append("\n").append(Post.assetName(db, asset)).append(": ")
+                     .append(Post.fmtQty(asset, Math.abs(q))).append(q > 0 ? " بدهکار" : " بستانکار");
+                }
+                a.close();
+                msg("مانده تا تاریخ", m.toString());
+            }
+        });
+    }
+
+    private void fillOps() {
+        opsBox.removeAllViews();
         LinearLayout row = h();
-        LinearLayout c1 = v();
-        c1.addView(tv("مانده نقدی", U.SUB, 12, false));
-        c1.addView(tvM(s[0] > 0 ? U.money(s[0]) + " بدهکار" : s[0] < 0 ? U.money(-s[0]) + " بستانکار" : "تسویه",
-                s[0] > 0 ? 0xFFFFCC80 : U.OK, 15));
-        LinearLayout c2 = v();
-        c2.addView(tv("مانده طلایی (۱۸ معادل)", U.SUB, 12, false));
-        c2.addView(tvM(s[1] > 0 ? U.mw((int) s[1]) + " گرم بدهکار" : s[1] < 0 ? U.mw((int) -s[1]) + " بستانکار" : "—",
-                s[1] > 0 ? 0xFFFFCC80 : U.TXT, 15));
-        row.addView(c1, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        row.addView(c2, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        balanceBox.addView(row);
-        // قرار دادن بعد از کارت هدر (اندیس 1)
-        body.addView(balanceBox, 1);
+        row.addView(btn("دریافت وجه", new Tap() { public void go() { payCash(); } }),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        row.addView(wspace(8));
+        row.addView(btn("دریافت طلا", new Tap() { public void go() { payGold(); } }),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        opsBox.addView(row);
+        opsBox.addView(space(6));
+        LinearLayout rowMid = h();
+        rowMid.addView(gbtn("📜 سند جدید برای این مشتری", new Tap() {
+            public void go() {
+                Intent it = new Intent(CustomerViewActivity.this, DocNewActivity.class);
+                it.putExtra("cid", cid);
+                it.putExtra("cname", name);
+                startActivity(it);
+            }
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        rowMid.addView(wspace(8));
+        rowMid.addView(gbtn("ویرایش پرونده ✎", new Tap() {
+            public void go() {
+                CustomersActivity.editCustomer(CustomerViewActivity.this, cid, new Tap() {
+                    public void go() { onResume(); }
+                });
+            }
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        opsBox.addView(rowMid);
+        opsBox.addView(space(6));
+        LinearLayout row2 = h();
+        row2.addView(dbtn("حذف حساب 🗑", new Tap() { public void go() { delCustomer(); } }),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        opsBox.addView(row2);
     }
 
     private void fillLedger() {
         ledgerBox.removeAllViews();
-        fillBalance();
         Cursor c = db.r().rawQuery("SELECT * FROM customer_tx WHERE cid=? ORDER BY ts DESC, id DESC LIMIT 200",
                 new String[]{"" + cid});
         boolean any = false;
@@ -169,6 +270,7 @@ public class CustomerViewActivity extends A {
             d.dismiss();
             U.toast(CustomerViewActivity.this, "ثبت شد ✓");
             fillLedger();
+            fillBalance();
         } }), new LinearLayout.LayoutParams(dp(140), ViewGroup.LayoutParams.WRAP_CONTENT));
         br.addView(wspace(10));
         br.addView(gbtn("انصراف", new Tap() { public void go() { d.dismiss(); } }),
@@ -186,7 +288,7 @@ public class CustomerViewActivity extends A {
         box.addView(tv("طلا به موجودی آبشده اضافه و از بدهی طلایی/نقدی مشتری کم می‌شود.", U.SUB, 12, false));
         box.addView(space(6));
         final android.widget.EditText ew = in("وزن (گرم)", true);
-        box.addView(label2("عیار:"));
+        box.addView(label("عیار:"));
         final int[] karat = {750};
         box.addView(chipsRow(new String[]{"۲۴","۲۲","۲۱","۱۸","۱۴","۹"}, 3, new OnIdx() {
             public void ok(int i) { karat[0] = ItemEditActivity.K_VALS[i]; }
@@ -225,14 +327,13 @@ public class CustomerViewActivity extends A {
             d.dismiss();
             U.toast(CustomerViewActivity.this, "ثبت شد ✓");
             fillLedger();
+            fillBalance();
         } }), new LinearLayout.LayoutParams(dp(140), ViewGroup.LayoutParams.WRAP_CONTENT));
         br.addView(wspace(10));
         br.addView(gbtn("انصراف", new Tap() { public void go() { d.dismiss(); } }),
                 new LinearLayout.LayoutParams(dp(110), ViewGroup.LayoutParams.WRAP_CONTENT));
         box.addView(br);
     }
-
-    private TextView label2(String s) { return label(s); }
 
     private void delCustomer() {
         Cursor c = db.r().rawQuery("SELECT COUNT(*) FROM customer_tx WHERE cid=?", new String[]{"" + cid});

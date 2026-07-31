@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -17,9 +18,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 
-/** تنظیمات + پشتیبان‌گیری و بازیابی (کاملاً آفلاین) */
+/** تنظیمات + API قیمت + پشتیبان‌گیری و بازیابی */
 public class SettingsActivity extends A {
-    static final String[] TABLES = {"settings","rates","customers","customer_tx","items","invoices","invoice_lines","cash_tx","gold_tx"};
+    static final String[] TABLES = {"settings","rates","customers","customer_tx","items","invoices",
+            "invoice_lines","cash_tx","gold_tx","defs","docs","doc_rows","assets_ledger","banks",
+            "bank_tx","checks","prices","etiket"};
     private static final int REQ_BACKUP = 11, REQ_RESTORE = 12;
 
     @Override protected void onCreate(Bundle b) {
@@ -64,9 +67,41 @@ public class SettingsActivity extends A {
         }));
         body.addView(c2);
 
+        LinearLayout c2b = card();
+        c2b.addView(tv("قیمت‌خوانی آنلاین (اختیاری)", U.GOLD, 15, true));
+        TextView apiHint = tv("برنامه هیچ سرور میانی ندارد؛ قیمت‌ها مستقیم از گوشی شما از این API عمومی خوانده می‌شوند. بدون اینترنت، همهٔ امکانات آفلاین در دسترس‌اند.", U.SUB, 12, false);
+        apiHint.setLineSpacing(3, 1.2f);
+        c2b.addView(apiHint);
+        c2b.addView(label("آدرس API قیمت‌ها"));
+
+        final EditText eApi = in(PricesActivity.DEFAULT_API);
+        eApi.setText(db.getS("api_url", PricesActivity.DEFAULT_API));
+        c2b.addView(eApi);
+        LinearLayout rApi = h();
+        rApi.addView(btn("ذخیره", new Tap() {
+            public void go() {
+                String u = U.str(eApi);
+                if (u.length() == 0) u = PricesActivity.DEFAULT_API;
+                db.setS("api_url", u);
+                eApi.setText(u);
+                U.toast(SettingsActivity.this, "ذخیره شد ✓");
+            }
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        rApi.addView(wspace(8));
+        rApi.addView(gbtn("بازگشت به پیش‌فرض", new Tap() {
+            public void go() {
+                db.setS("api_url", PricesActivity.DEFAULT_API);
+                eApi.setText(PricesActivity.DEFAULT_API);
+                U.toast(SettingsActivity.this, "به پیش‌فرض برگشت ✓");
+            }
+        }), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        c2b.addView(space(2));
+        c2b.addView(rApi);
+        body.addView(c2b);
+
         LinearLayout c3 = card();
         c3.addView(tv("پشتیبان‌گیری و بازیابی", U.GOLD, 15, true));
-        c3.addView(tv("از همهٔ داده‌ها (فاکتورها، مشتریان، اجناس، نرخ‌ها و تراکنش‌ها) فایل بکاپ JSON ساخته می‌شود. بازیابی، داده‌های فعلی را جایگزین می‌کند.", U.SUB, 12, false));
+        c3.addView(tv("از همهٔ داده‌ها (فاکتورها، اسناد، مشتریان، اجناس، اتیکت‌ها، چک‌ها، بانک‌ها، نرخ‌ها و تراکنش‌ها) فایل بکاپ JSON ساخته می‌شود. بازیابی، داده‌های فعلی را جایگزین می‌کند.", U.SUB, 12, false));
         c3.addView(space(6));
         LinearLayout r = h();
         r.addView(btn("⬆ ایجاد فایل بکاپ", new Tap() { public void go() { doBackup(); } }),
@@ -79,8 +114,8 @@ public class SettingsActivity extends A {
 
         LinearLayout c4 = card();
         c4.addView(tv("درباره", U.GOLD, 15, true));
-        c4.addView(kv("نسخه", "۱٫۰"));
-        c4.addView(kv("حالت", "کاملاً آفلاین — بدون نیاز به اینترنت یا سرور"));
+        c4.addView(kv("نسخه", "۲٫۰"));
+        c4.addView(kv("حالت", "آفلاین کامل + دریافت اختیاری قیمت مستقیم از API عمومی (بدون سرور میانی)"));
         c4.addView(kv("داده‌ها", "ذخیره محلی روی همین گوشی (SQLite)"));
         body.addView(c4);
     }

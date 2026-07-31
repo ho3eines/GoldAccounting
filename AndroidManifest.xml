@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.talayar.app"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="2"
+    android:versionName="2.0">
 
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="27"/>
-    <!-- هیچ مجوزی (حتی اینترنت) لازم نیست: کاملاً آفلاین -->
+    <!-- اینترنت فقط برای دریافت مستقیم قیمت‌های بازار از API عمومی (بدون سرور میانی).
+         بدون اینترنت هم همهٔ امکانات برنامه کاملاً آفلاین کار می‌کنند. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <application
         android:label="@string/app_name"
@@ -33,5 +36,19 @@
         <activity android:name=".GoldActivity" android:exported="false"/>
         <activity android:name=".ReportsActivity" android:exported="false"/>
         <activity android:name=".SettingsActivity" android:exported="false"/>
+        <activity android:name=".PricesActivity" android:exported="false"/>
+        <activity android:name=".DefsActivity" android:exported="false"/>
+        <activity android:name=".AssetsActivity" android:exported="false"/>
+        <activity android:name=".DocNewActivity" android:exported="false"/>
+        <activity android:name=".DocsActivity" android:exported="false"/>
+        <activity android:name=".ChecksActivity" android:exported="false"/>
+        <activity android:name=".EtiketActivity" android:exported="false"/>
+        <activity android:name=".EtiketViewActivity" android:exported="false"/>
+
+        <provider
+            android:name=".ShareProvider"
+            android:authorities="com.talayar.app.share"
+            android:exported="false"
+            android:grantUriPermissions="true"/>
     </application>
 </manifest>
