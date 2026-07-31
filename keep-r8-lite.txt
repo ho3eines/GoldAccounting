@@ -1,0 +1,5 @@
+# حذف انوتیشن‌ها از android.jar (رفع باگ NYI جانینو)، حفظ InnerClasses
+-keep class ** { *; }
+-keepattributes InnerClasses,EnclosingMethod,Exceptions
+-dontwarn **
+-dontnote **

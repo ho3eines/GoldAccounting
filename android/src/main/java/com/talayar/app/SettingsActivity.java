@@ -75,6 +75,10 @@ public class SettingsActivity extends A {
         c2b.addView(space(4));
 
         c2b.addView(label("انتخاب منبع پیش‌فرض (API)"));
+        final EditText eApi = in(PricesActivity.DEFAULT_API);
+        eApi.setText(db.getS("api_url", PricesActivity.DEFAULT_API));
+        final EditText eMap = in("خالی = تشخیص خودکار هوشمند");
+        eMap.setText(db.getS("api_map", ""));
         final LinearLayout apiPresetBox = h();
         apiPresetBox.addView(gbtn("TGJU", new Tap() {
             public void go() {
@@ -99,13 +103,9 @@ public class SettingsActivity extends A {
         c2b.addView(space(6));
 
         c2b.addView(label("آدرس API قیمت‌ها"));
-        final EditText eApi = in(PricesActivity.DEFAULT_API);
-        eApi.setText(db.getS("api_url", PricesActivity.DEFAULT_API));
         c2b.addView(eApi);
 
         c2b.addView(label("مسیرهای آرایه یا دسته‌ها در JSON (با کاما جدا کنید، مثلاً: gold,currency,cryptocurrency یا خالی برای خودکار)"));
-        final EditText eMap = in("خالی = تشخیص خودکار هوشمند");
-        eMap.setText(db.getS("api_map", ""));
         c2b.addView(eMap);
 
         LinearLayout rApi = h();
@@ -170,6 +170,8 @@ public class SettingsActivity extends A {
         c2c.addView(space(2));
         c2c.addView(rServer);
         body.addView(c2c);
+
+        LinearLayout c3 = card();
         c3.addView(tv("پشتیبان‌گیری و بازیابی", U.GOLD, 15, true));
         c3.addView(tv("از همهٔ داده‌ها (فاکتورها، اسناد، مشتریان، اجناس، اتیکت‌ها، چک‌ها، بانک‌ها، نرخ‌ها و تراکنش‌ها) فایل بکاپ JSON ساخته می‌شود. بازیابی، داده‌های فعلی را جایگزین می‌کند.", U.SUB, 12, false));
         c3.addView(space(6));
@@ -184,8 +186,8 @@ public class SettingsActivity extends A {
 
         LinearLayout c4 = card();
         c4.addView(tv("درباره", U.GOLD, 15, true));
-        c4.addView(kv("نسخه", "۲٫۱"));
-        c4.addView(kv("حالت", "آفلاین کامل + دریافت اختیاری قیمت مستقیم از API عمومی (بدون سرور میانی)"));
+        c4.addView(kv("نسخه", "۳٫۰"));
+        c4.addView(kv("حالت", "آفلاین کامل + دریافت اختیاری قیمت مستقیم از API عمومی + همگام‌سازی اختیاری با سرور ابری (Blazor)"));
         c4.addView(kv("داده‌ها", "ذخیره محلی روی همین گوشی (SQLite)"));
         body.addView(c4);
     }

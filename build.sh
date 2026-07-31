@@ -12,11 +12,11 @@ DEX=$ROOT/dexout
 RES=$ANDROID_DIR/res
 ASSETS=$ANDROID_DIR/assets
 MANIFEST=$ANDROID_DIR/AndroidManifest.xml
-ANDROID_JAR_LITE=$T/android-lite
+ANDROID_JAR_LITE=$T/android-lite.jar
 ANDROID_JAR=$T/platforms/android-21/android.jar
 APK_RAW=$ROOT/talayar-raw.apk
 APK_FULL=$ROOT/talayar-full.apk
-APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v2.1.apk
+APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v3.0.apk
 
 echo "== 1/5 aapt2: کامپایل و لینک منابع"
 cd "$ROOT"
