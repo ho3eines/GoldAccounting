@@ -1,0 +1,122 @@
+@page "/print/{Type}/{Id:int}"
+@inject AppDbContext Db
+@inject IJSRuntime JSRuntime
+
+<PageTitle>چاپ سند / فاکتور</PageTitle>
+
+<div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border my-8 print:shadow-none print:border-none print:m-0">
+    <div class="flex justify-between items-center border-b pb-6 print:border-b-2">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">🪙 سامانه طلایار</h1>
+            <p class="text-xs text-gray-500 mt-1">گزارش رسمی و چاپ اسناد حسابداری و فروش</p>
+        </div>
+        <div class="text-left">
+            <span class="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full font-bold">نوع سند: @Type</span>
+            <p class="text-xs text-gray-500 mt-2">تاریخ چاپ: @DateTime.Now.ToString("yyyy/MM/dd")</p>
+        </div>
+    </div>
+
+    @if (Type == "invoice")
+    {
+        var inv = Db.Invoices.FirstOrDefault(i => i.Id == Id);
+        if (inv != null)
+        {
+            <div class="py-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-4 rounded-lg">
+                    <div><strong>شماره فاکتور:</strong> @inv.Id</div>
+                    <div><strong>تاریخ:</strong> @inv.DateJ</div>
+                    <div><strong>مشتری:</strong> @inv.Cname</div>
+                    <div><strong>نرخ روز طلا:</strong> @inv.Rate.ToString("N0") تومان</div>
+                </div>
+
+                <table class="w-full text-right border-collapse text-sm mt-4">
+                    <thead>
+                        <tr class="bg-gray-100 border-b">
+                            <th class="p-3">شرح / اقلام</th>
+                            <th class="p-3">مبلغ کل (تومان)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr>
+                            <td class="p-3">ارزش طلا</td>
+                            <td class="p-3">@inv.GoldVal.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3">اجرت ساخت</td>
+                            <td class="p-3">@inv.Wage.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3">سنگ و جواهر</td>
+                            <td class="p-3">@inv.Stone.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3">مالیات بر ارزش افزوده</td>
+                            <td class="p-3">@inv.Tax.ToString("N0")</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="bg-amber-50 p-4 rounded-lg flex justify-between items-center text-base font-bold mt-4">
+                    <span>مبلغ قابل پرداخت:</span>
+                    <span class="text-amber-700">@inv.Total.ToString("N0") تومان</span>
+                </div>
+            </div>
+        }
+    }
+    else if (Type == "voucher")
+    {
+        var v = Db.AccountingVouchers.Include(x => x.Rows).FirstOrDefault(x => x.Id == Id);
+        if (v != null)
+        {
+            <div class="py-6 space-y-4">
+                <div class="bg-gray-50 p-4 rounded-lg text-sm space-y-1">
+                    <div><strong>شماره سند حسابداری:</strong> @v.Id</div>
+                    <div><strong>عنوان:</strong> @v.Title</div>
+                    <div><strong>تاریخ:</strong> @v.DateJ</div>
+                    <div><strong>شرح:</strong> @v.Descr</div>
+                </div>
+
+                <table class="w-full text-right border-collapse text-sm mt-4">
+                    <thead>
+                        <tr class="bg-gray-100 border-b">
+                            <th class="p-3">کد حساب</th>
+                            <th class="p-3">نام حساب</th>
+                            <th class="p-3">بدهکار</th>
+                            <th class="p-3">بستانکار</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        @foreach (var r in v.Rows)
+                        {
+                            <tr>
+                                <td class="p-3 font-mono">@r.AccountCode</td>
+                                <td class="p-3">@r.AccountName</td>
+                                <td class="p-3 text-blue-600 font-bold">@(r.Debit > 0 ? r.Debit.ToString("N0") : "—")</td>
+                                <td class="p-3 text-purple-600 font-bold">@(r.Credit > 0 ? r.Credit.ToString("N0") : "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
+    <div class="mt-8 flex justify-end space-x-3 space-x-reverse print:hidden">
+        <button @onclick="PrintPage" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold shadow transition">
+            🖨 چاپ سند
+        </button>
+        <a href="" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2.5 rounded-xl font-bold transition">
+            بازگشت به پنل
+        </a>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Type { get; set; } = "";
+    [Parameter] public int Id { get; set; }
+
+    private async Task PrintPage()
+    {
+        await JSRuntime.InvokeVoidAsync("window.print");
+    }
+}

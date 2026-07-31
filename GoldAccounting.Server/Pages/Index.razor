@@ -1,54 +1,78 @@
 @page "/"
 @inject AppDbContext Db
 
-<PageTitle>داشبورد مدیریت طلایار</PageTitle>
+<PageTitle>داشبورد مدیریت حرفه‌ای طلایار</PageTitle>
 
 <div class="space-y-6">
-    <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-6 rounded-2xl shadow-lg">
-        <h2 class="text-2xl font-bold">خوش آمدید؛ سیستم مدیریت جامع طلا و حسابداری ابری</h2>
-        <p class="text-amber-100 mt-2 text-sm">برنامه اندروید شما به صورت آفلاین کار می‌کند و با وارد کردن آدرس سرور در تنظیمات، تمامی فاکتورها و تراکنش‌ها را با کد رهگیری یکتا (جهت جلوگیری از تکرار) با این سرور همگام‌سازی می‌کند.</p>
+    <!-- Top Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-amber-900 to-amber-700 text-white p-6 md:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center">
+        <div class="space-y-2">
+            <span class="bg-amber-500 text-slate-900 text-xs px-3 py-1 rounded-full font-bold">نسخه حرفه‌ای ابری + موبایل</span>
+            <h2 class="text-2xl md:text-3xl font-bold">داشبورد مدیریت یکپارچه طلا، حسابداری و فروش</h2>
+            <p class="text-amber-100 text-sm max-w-2xl">تمامی اطلاعات دستگاه‌های اندروید به‌صورت کاملاً امن با سرور همگام‌سازی شده‌اند و برنامه وب کاملاً ریسپانسیو آماده مدیریت و چاپ اسناد است.</p>
+        </div>
+        <div class="mt-4 md:mt-0 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 text-center">
+            <p class="text-xs text-amber-200">وضعیت ارتباط سرور</p>
+            <p class="text-lg font-bold text-green-400 mt-1">🟢 آنلاین و فعال</p>
+        </div>
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
-                <p class="text-sm text-gray-500 font-medium">کل فاکتورها / فروش</p>
-                <h3 class="text-2xl font-bold text-gray-800 mt-1">@invoiceCount</h3>
+                <p class="text-xs md:text-sm text-gray-500 font-medium">کل فاکتورها</p>
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@invoiceCount</h3>
             </div>
-            <div class="bg-amber-50 p-3 rounded-full text-amber-600 text-xl">🧾</div>
+            <div class="bg-amber-50 p-3 rounded-xl text-amber-600 text-lg md:text-xl">🧾</div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
-                <p class="text-sm text-gray-500 font-medium">مشتریان ثبت‌شده</p>
-                <h3 class="text-2xl font-bold text-gray-800 mt-1">@customerCount</h3>
+                <p class="text-xs md:text-sm text-gray-500 font-medium">مشتریان ثبت‌شده</p>
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@customerCount</h3>
             </div>
-            <div class="bg-blue-50 p-3 rounded-full text-blue-600 text-xl">👥</div>
+            <div class="bg-blue-50 p-3 rounded-xl text-blue-600 text-lg md:text-xl">👥</div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
-                <p class="text-sm text-gray-500 font-medium">اسناد حسابداری (اتوماتیک)</p>
-                <h3 class="text-2xl font-bold text-gray-800 mt-1">@voucherCount</h3>
+                <p class="text-xs md:text-sm text-gray-500 font-medium">اسناد حسابداری اتوماتیک</p>
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@voucherCount</h3>
             </div>
-            <div class="bg-green-50 p-3 rounded-full text-green-600 text-xl">📑</div>
+            <div class="bg-green-50 p-3 rounded-xl text-green-600 text-lg md:text-xl">📑</div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
-                <p class="text-sm text-gray-500 font-medium">همگام‌سازی‌های موفق اندروید</p>
-                <h3 class="text-2xl font-bold text-gray-800 mt-1">@syncCount</h3>
+                <p class="text-xs md:text-sm text-gray-500 font-medium">همگام‌سازی‌های موفق</p>
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@syncCount</h3>
             </div>
-            <div class="bg-purple-50 p-3 rounded-full text-purple-600 text-xl">🔄</div>
+            <div class="bg-purple-50 p-3 rounded-xl text-purple-600 text-lg md:text-xl">🔄</div>
         </div>
     </div>
 
-    <!-- Quick API Info Box -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
-        <h3 class="text-lg font-bold text-gray-800">🔗 اطلاعات اتصال API برای برنامه اندروید</h3>
-        <p class="text-sm text-gray-600">برای اتصال برنامه اندروید به این سرور ابری، آدرس زیر را در بخش <strong>تنظیمات > آدرس سرور همگام‌سازی</strong> در اپلیکیشن اندروید وارد کنید:</p>
-        <div class="bg-gray-100 p-3 rounded-lg font-mono text-sm text-amber-700 select-all">
-            @serverApiUrl/api/sync/push
+    <!-- Quick API & Android Sync Settings Box -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                <span class="ml-2">🔗</span> اتصال برنامه اندروید به سرور
+            </h3>
+            <p class="text-xs md:text-sm text-gray-600">برای همگام‌سازی دوطرفه اطلاعات اندروید و سرور، آدرس زیر را در برنامه اندروید (تنظیمات > همگام‌سازی ابری) وارد کنید:</p>
+            <div class="bg-gray-50 p-3 rounded-xl font-mono text-xs md:text-sm text-amber-700 border select-all">
+                @serverApiUrl/api/sync/push
+            </div>
+            <p class="text-xs text-gray-500">تمامی داده‌ها (فاکتورها، چک‌ها، صندوق، مشتریان) با کد رهگیری یکتا (Idempotent) کاملاً باهم ساین و هماهنگ می‌شوند.</p>
         </div>
-        <p class="text-xs text-gray-500">نکته: هر تراکنش دارای یک کد یکتا (TransferCode) است که از ارسال تکراری داده‌های آفلاین جلوگیری می‌کند.</p>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                <span class="ml-2">⚡</span> دسترسی سریع به ماژول‌ها
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+                <a href="invoices" class="p-3 bg-amber-50 hover:bg-amber-100 rounded-xl text-amber-800 font-bold text-sm text-center transition">🧾 فاکتورها و فروش</a>
+                <a href="accounting" class="p-3 bg-green-50 hover:bg-green-100 rounded-xl text-green-800 font-bold text-sm text-center transition">📑 اسناد حسابداری</a>
+                <a href="checks" class="p-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-800 font-bold text-sm text-center transition">💳 مدیریت چک‌ها</a>
+                <a href="onlineshop" class="p-3 bg-purple-50 hover:bg-purple-100 rounded-xl text-purple-800 font-bold text-sm text-center transition">🛒 فروشگاه آنلاین</a>
+            </div>
+        </div>
     </div>
 </div>
 

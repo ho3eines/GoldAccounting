@@ -4,28 +4,32 @@
 <PageTitle>اسناد حسابداری اتوماتیک</PageTitle>
 
 <div class="space-y-6">
-    <div>
-        <h2 class="text-2xl font-bold text-gray-800">📑 اسناد حسابداری دوبل و اتوماتیک</h2>
-        <p class="text-sm text-gray-500 mt-1">با ثبت هر فاکتور یا تراکنش، سند حسابداری مربوطه به‌طور خودکار با اقلام بدهکار و بستانکار تولید می‌شود.</p>
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">📑 اسناد حسابداری دوبل و اتوماتیک</h2>
+            <p class="text-sm text-gray-500 mt-1">با ثبت هر فاکتور یا تراکنش در اندروید یا وب، سند حسابداری به‌طور خودکار صادر و آماده چاپ است.</p>
+        </div>
     </div>
 
     <div class="space-y-4">
         @foreach (var v in vouchers)
         {
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-                <div class="flex justify-between items-start border-b pb-3">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6 space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-3">
                     <div>
-                        <span class="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold">سند شماره @v.Id</span>
-                        <h3 class="text-lg font-bold text-gray-800 mt-2">@v.Title</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">تاریخ: @v.DateJ — مرجع: @v.RefType (شماره @v.RefId)</p>
+                        <span class="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full font-bold">سند شماره @v.Id</span>
+                        <h3 class="text-base md:text-lg font-bold text-gray-800 mt-2">@v.Title</h3>
+                        <p class="text-xs text-gray-500 mt-1">تاریخ: @v.DateJ — مرجع: @v.RefType (شماره @v.RefId)</p>
                     </div>
-                    <div class="text-left text-xs text-gray-400 font-mono">
-                        @v.Descr
+                    <div>
+                        <a href="print/voucher/@v.Id" target="_blank" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-xl font-bold text-xs inline-flex items-center transition">
+                            🖨 چاپ سند حسابداری
+                        </a>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-right border-collapse">
+                    <table class="w-full text-right border-collapse min-w-[600px]">
                         <thead>
                             <tr class="bg-gray-50 text-xs text-gray-600 border-b">
                                 <th class="p-3">کد حساب</th>
@@ -53,7 +57,7 @@
         }
         @if (!vouchers.Any())
         {
-            <div class="bg-white rounded-xl p-8 text-center text-gray-500 shadow-sm border">
+            <div class="bg-white rounded-2xl p-8 text-center text-gray-500 shadow-sm border">
                 هنوز سند حسابداری اتوماتیکی صادر نشده است.
             </div>
         }
