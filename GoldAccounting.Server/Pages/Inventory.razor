@@ -1,0 +1,56 @@
+@page "/inventory"
+@inject AppDbContext Db
+
+<PageTitle>مدیریت انبار و موجودی</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">📦 مدیریت انبار طلا و کالا</h2>
+            <p class="text-sm text-gray-500 mt-1">مشاهده موجودی کالاهای ساخته شده، شمش و سکه در انبار.</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <table class="w-full text-right border-collapse">
+            <thead>
+                <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                    <th class="p-4">کد</th>
+                    <th class="p-4">نام کالا</th>
+                    <th class="p-4">عیار</th>
+                    <th class="p-4">وزن (میلی‌گرم)</th>
+                    <th class="p-4">ارزش پایه (تومان)</th>
+                    <th class="p-4">وضعیت</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y text-sm text-gray-700">
+                @foreach (var item in items)
+                {
+                    <tr>
+                        <td class="p-4 font-mono font-bold text-amber-600">@item.Code</td>
+                        <td class="p-4 font-semibold">@item.Name</td>
+                        <td class="p-4">@item.Karat</td>
+                        <td class="p-4">@item.Wmw.ToString("N0")</td>
+                        <td class="p-4 font-bold text-gray-900">@item.WVal.ToString("N0")</td>
+                        <td class="p-4"><span class="bg-green-50 text-green-700 text-xs px-2.5 py-1 rounded">@item.Status</span></td>
+                    </tr>
+                }
+                @if (!items.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-gray-500">انباری یافت نشد.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Item> items = new();
+
+    protected override void OnInitialized()
+    {
+        items = Db.Items.ToList();
+    }
+}

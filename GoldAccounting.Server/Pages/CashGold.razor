@@ -1,0 +1,68 @@
+@page "/cashgold"
+@inject AppDbContext Db
+
+<PageTitle>صندوق و حساب‌های طلا</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">💰 صندوق و تراکنش‌های طلای آب‌شده</h2>
+        <p class="text-sm text-gray-500 mt-1">مدیریت ورود و خروج وجه نقد صندوق و حساب‌های طلای آب‌شده همگام‌سازی شده.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Cash -->
+        <div class="bg-white rounded-xl shadow-sm border p-6 space-y-4">
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-3">تراکنش‌های صندوق (نقدی)</h3>
+            <div class="space-y-3">
+                @foreach (var c in cashList)
+                {
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
+                        <div>
+                            <span class="font-bold @(c.Kind == "in" ? "text-green-600" : "text-red-600")">
+                                @(c.Kind == "in" ? "ورود به صندوق" : "خروج از صندوق")
+                            </span>
+                            <p class="text-xs text-gray-500 mt-0.5">@c.Descr (@c.DateJ)</p>
+                        </div>
+                        <span class="font-bold text-gray-800">@c.Amount.ToString("N0") تومان</span>
+                    </div>
+                }
+                @if (!cashList.Any())
+                {
+                    <p class="text-center text-gray-500 text-sm py-4">تراکنش نقدی ثبت نشده است.</p>
+                }
+            </div>
+        </div>
+
+        <!-- Gold -->
+        <div class="bg-white rounded-xl shadow-sm border p-6 space-y-4">
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-3">تراکنش‌های طلای آب‌شده</h3>
+            <div class="space-y-3">
+                @foreach (var g in goldList)
+                {
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
+                        <div>
+                            <span class="font-bold text-amber-600">عیار @g.Karat — @g.Wmw.ToString("N0") میلی‌گرم</span>
+                            <p class="text-xs text-gray-500 mt-0.5">@g.Descr (@g.DateJ)</p>
+                        </div>
+                        <span class="font-bold text-gray-800">@(g.Kind == "in" ? "ورود" : "خروج")</span>
+                    </div>
+                }
+                @if (!goldList.Any())
+                {
+                    <p class="text-center text-gray-500 text-sm py-4">تراکنش طلایی ثبت نشده است.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<CashTransaction> cashList = new();
+    private List<GoldTransactionEntity> goldList = new();
+
+    protected override void OnInitialized()
+    {
+        cashList = Db.CashTransactions.OrderByDescending(c => c.Id).Take(20).ToList();
+        goldList = Db.GoldTransactions.OrderByDescending(g => g.Id).Take(20).ToList();
+    }
+}

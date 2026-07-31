@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # ساخت کامل APK طلایار — بدون اندروید استودیو و گریدل
-# پیش‌نیازها در TOOLCHAIN.md توضیح داده شده‌اند.
 set -e
 T=${TOOLCHAIN:-/home/user/toolchain}
 export PATH="$T/jre/bin:$PATH"
 ROOT=$(cd "$(dirname "$0")" && pwd)
-SRC=$ROOT/android/src/main/java
+ANDROID_DIR=$ROOT/android
+SRC=$ANDROID_DIR/src/main/java
 GEN=$ROOT/gen
 CLASSES=$ROOT/classes
 DEX=$ROOT/dexout
-ANDROID_JAR_LITE=$T/android-lite        # jar حذف‌انوتیشن‌شده برای کامپایل (janino)
-ANDROID_JAR=$T/platforms/android-21/android.jar   # jar اصلی برای لینک منابع
+RES=$ANDROID_DIR/res
+ASSETS=$ANDROID_DIR/assets
+MANIFEST=$ANDROID_DIR/AndroidManifest.xml
+ANDROID_JAR_LITE=$T/android-lite
+ANDROID_JAR=$T/platforms/android-21/android.jar
 APK_RAW=$ROOT/talayar-raw.apk
 APK_FULL=$ROOT/talayar-full.apk
 APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v2.1.apk
@@ -18,8 +21,8 @@ APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v2.1.apk
 echo "== 1/5 aapt2: کامپایل و لینک منابع"
 cd "$ROOT"
 rm -rf res.zip "$GEN" "$CLASSES" "$DEX" "$APK_RAW" "$APK_FULL"
-$T/aapt2 compile --dir res -o res.zip
-$T/aapt2 link -o "$APK_RAW" -I "$ANDROID_JAR" --manifest AndroidManifest.xml --java "$GEN" -A "$ROOT/assets" res.zip \
+$T/aapt2 compile --dir "$RES" -o res.zip
+$T/aapt2 link -o "$APK_RAW" -I "$ANDROID_JAR" --manifest "$MANIFEST" --java "$GEN" -A "$ASSETS" res.zip \
     --min-sdk-version 24 --target-sdk-version 27
 
 echo "== 2/5 janino: کامپایل جاوا"

@@ -1,0 +1,65 @@
+@page "/invoices"
+@inject AppDbContext Db
+
+<PageTitle>مدیریت فاکتورها و فروش</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🧾 مدیریت فاکتورها و ماژول فروش</h2>
+            <p class="text-sm text-gray-500 mt-1">مشاهده، پیگیری و چاپ فاکتورهای صادر شده از نرم‌افزار اندروید و فروشگاه آنلاین.</p>
+        </div>
+    </div>
+
+    <!-- Invoices Card / Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-right border-collapse min-w-[700px]">
+                <thead>
+                    <tr class="bg-gray-50 border-b text-gray-600 text-xs md:text-sm">
+                        <th class="p-4">شماره</th>
+                        <th class="p-4">تاریخ</th>
+                        <th class="p-4">مشتری</th>
+                        <th class="p-4">مبلغ کل (تومان)</th>
+                        <th class="p-4">پرداخت نقدی</th>
+                        <th class="p-4">مانده بدهی</th>
+                        <th class="p-4">عملیات / چاپ</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y text-xs md:text-sm text-gray-700">
+                    @foreach (var inv in invoices)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-4 font-bold text-amber-600">@inv.Id</td>
+                            <td class="p-4">@inv.DateJ</td>
+                            <td class="p-4 font-semibold">@inv.Cname</td>
+                            <td class="p-4 font-bold text-gray-900">@inv.Total.ToString("N0")</td>
+                            <td class="p-4 text-green-600">@inv.Pcash.ToString("N0")</td>
+                            <td class="p-4 text-red-600">@inv.Debt.ToString("N0")</td>
+                            <td class="p-4">
+                                <a href="print/invoice/@inv.Id" target="_blank" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1.5 rounded-xl font-bold text-xs inline-flex items-center transition">
+                                    🖨 چاپ فاکتور
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!invoices.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="p-8 text-center text-gray-500">هیچ فاکتوری هنوز ثبت یا همگام‌سازی نشده است.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Invoice> invoices = new();
+
+    protected override void OnInitialized()
+    {
+        invoices = Db.Invoices.OrderByDescending(i => i.Id).ToList();
+    }
+}

@@ -1,0 +1,80 @@
+@page "/onlineshop"
+@inject AppDbContext Db
+
+<PageTitle>کاتالوگ محصولات و انبار فروشگاه</PageTitle>
+
+<div class="space-y-6">
+    <!-- Header with Shop & Contact Info -->
+    <div class="bg-gradient-to-r from-slate-900 via-amber-900 to-amber-700 text-white p-6 md:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="space-y-2 text-center md:text-right">
+            <span class="bg-amber-500 text-slate-900 text-xs px-3 py-1 rounded-full font-bold">نمایشگاه آنلاین کالا و انبار</span>
+            <h2 class="text-2xl md:text-3xl font-bold">🪙 کاتالوگ طلایار</h2>
+            <p class="text-amber-100 text-sm max-w-xl">مشتریان عزیز می‌توانند اقلام و محصولات موجود در انبار را مشاهده کرده و جهت خرید و استعلام قیمت دقیق با فروشگاه تماس بگیرند.</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/20 text-center space-y-2 min-w-[240px]">
+            <p class="text-xs text-amber-200 font-bold">📞 اطلاعات تماس فروشگاه</p>
+            <p class="text-lg font-bold text-white tracking-wide">۰۲۱-۸۸۸۸۰۰۰۰</p>
+            <p class="text-xs text-slate-300">تهران، بازار طلا و جواهر</p>
+        </div>
+    </div>
+
+    <!-- Catalog Grid -->
+    <div class="space-y-4">
+        <h3 class="text-xl font-bold text-gray-800 flex items-center">
+            <span class="ml-2">📦</span> محصولات موجود در انبار
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @foreach (var item in items)
+            {
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition">
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-start">
+                            <span class="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full font-bold">عیار @item.Karat</span>
+                            <span class="text-xs font-mono text-gray-400">کد: @item.Code</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900">@item.Name</h4>
+                        <p class="text-xs text-gray-500">وزن خالص: @item.Wmw.ToString("N0") میلی‌گرم</p>
+                        @if (!string.IsNullOrEmpty(item.Descr))
+                        {
+                            <p class="text-xs text-gray-600 bg-gray-50 p-2 rounded-xl">@item.Descr</p>
+                        }
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t flex justify-between items-center">
+                        <div>
+                            <p class="text-xs text-gray-400">قیمت پایه برآوردی</p>
+                            <p class="text-amber-700 font-bold text-base mt-0.5">@((item.WVal > 0 ? item.WVal : 80875000).ToString("N0")) <span class="text-xs font-normal">تومان</span></p>
+                        </div>
+                        <a href="tel:02188880000" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow transition flex items-center">
+                            📞 تماس جهت خرید
+                        </a>
+                    </div>
+                </div>
+            }
+            @if (!items.Any())
+            {
+                <div class="col-span-full bg-white p-12 text-center text-gray-500 rounded-2xl border shadow-sm">
+                    محصولی در انبار یافت نشد.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Item> items = new();
+
+    protected override void OnInitialized()
+    {
+        items = Db.Items.Where(i => i.Status == "stock").ToList();
+        if (!items.Any())
+        {
+            Db.Items.Add(new Item { Code = 101, Name = "انگشتر طلای طرح ملکه", Karat = 18, Wmw = 5400, WVal = 120000000, Status = "stock", Descr = "بسیار شیک و پرطرفدار", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Db.Items.Add(new Item { Code = 102, Name = "دستبند طلا کارتیه", Karat = 18, Wmw = 12500, WVal = 265000000, Status = "stock", Descr = "مدل جدید و ظریف", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Db.Items.Add(new Item { Code = 103, Name = "سرویس کامل طلا عروس", Karat = 18, Wmw = 45000, WVal = 950000000, Status = "stock", Descr = "مخصوص مراسم و سرمایه‌گذاری", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
+            Db.SaveChanges();
+            items = Db.Items.Where(i => i.Status == "stock").ToList();
+        }
+    }
+}
