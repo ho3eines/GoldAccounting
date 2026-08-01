@@ -12,7 +12,7 @@ import android.provider.OpenableColumns;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-/** پرووایدر سبک برای اشتراک‌گذاری امن فایل‌های داخلی برنامه (عکس اتیکت، کارت بارکد) */
+/** پرووایدر سبک برای اشتراک‌گذاری امن فایل‌های داخلی برنامه (عکس اتیکت، کارت بارکد، فاکتور PDF) */
 public class ShareProvider extends ContentProvider {
 
     @Override public boolean onCreate() { return true; }
@@ -58,6 +58,7 @@ public class ShareProvider extends ContentProvider {
         if (p != null) {
             if (p.endsWith(".png")) return "image/png";
             if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
+            if (p.endsWith(".pdf")) return "application/pdf";
         }
         return "application/octet-stream";
     }
@@ -66,7 +67,7 @@ public class ShareProvider extends ContentProvider {
     @Override public int delete(Uri uri, String s, String[] a) { return 0; }
     @Override public int update(Uri uri, ContentValues v, String s, String[] a) { return 0; }
 
-    /** ساخت content Uri برای مسیر نسبیِ داخل filesDir (مثل "etiket/x.jpg") */
+    /** ساخت content Uri برای مسیر نسبیِ داخل filesDir (مثل "etiket/x.jpg" یا "invoices/preinvoice.pdf") */
     public static Uri uriFor(Context c, String relPath) {
         return Uri.parse("content://com.talayar.app.share/" + Uri.encode(relPath));
     }

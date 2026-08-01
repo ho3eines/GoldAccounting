@@ -78,6 +78,9 @@ public class InvoiceViewActivity extends A {
         addBtn(body, btn("↗ اشتراک‌گذاری فاکتور (متن)", new Tap() {
             public void go() { share(iid); }
         }));
+        addBtn(body, gbtn("📄 خروجی PDF فاکتور", new Tap() {
+            public void go() { exportInvoicePdf(iid); }
+        }));
         addBtn(body, dbtn("ابطال فاکتور (سند معکوس)", new Tap() {
             public void go() { voidInvoice(iid); }
         }));
@@ -136,6 +139,37 @@ public class InvoiceViewActivity extends A {
         it.setType("text/plain");
         it.putExtra(Intent.EXTRA_TEXT, txt);
         startActivity(Intent.createChooser(it, "اشتراک‌گذاری فاکتور"));
+    }
+
+    private void exportInvoicePdf(int iid) {
+        Cursor c = db.r().rawQuery("SELECT * FROM invoices WHERE id=?", new String[]{"" + iid});
+        if (!c.moveToFirst()) { c.close(); return; }
+        String date = Db.cs(c, "date_j");
+        String cn = Db.cs(c, "cname");
+        long rate = Db.cl(c, "rate");
+        long total = Db.cl(c, "total");
+        long pcash = Db.cl(c, "pcash");
+        long pgw = Db.cl(c, "pgold_mw");
+        long pgv = Db.cl(c, "pgold_val");
+        long pgk = Db.cl(c, "pgold_karat");
+        long debt = Db.cl(c, "debt");
+        String note = Db.cs(c, "note");
+        c.close();
+
+        ArrayList<InvoicePdf.LineInfo> pdfLines = new ArrayList<InvoicePdf.LineInfo>();
+        Cursor lc = db.r().rawQuery("SELECT * FROM invoice_lines WHERE iid=?", new String[]{"" + iid});
+        while (lc.moveToNext()) {
+            pdfLines.add(new InvoicePdf.LineInfo(
+                    Db.cs(lc, "title"),
+                    Db.ci(lc, "karat"),
+                    Db.ci(lc, "wmw"),
+                    Db.cl(lc, "unit"),
+                    Db.cl(lc, "total")
+            ));
+        }
+        lc.close();
+
+        InvoicePdf.generateAndShare(this, db, false, iid, date, cn, rate, total, pcash, pgw, pgv, pgk, debt, note, pdfLines);
     }
 
     private void voidInvoice(final int iid) {

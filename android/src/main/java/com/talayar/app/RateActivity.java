@@ -48,6 +48,29 @@ public class RateActivity extends A {
                 });
             }
         }));
+        c.addView(space(6));
+        addBtn(c, gbtn("⬇  بروزرسانی آنلاین نرخ طلا", new Tap() {
+            public void go() {
+                String apiUrl = db.getS("api_url", PricesActivity.DEFAULT_API);
+                U.toast(RateActivity.this, "در حال دریافت آنلاین نرخ طلا…");
+                Net.fetchPrices(db, apiUrl, RateActivity.this, new Net.Done() {
+                    public void ok(String err) {
+                        long g18 = db.priceGet("gold18");
+                        if (g18 > 0) {
+                            android.content.ContentValues cv = new android.content.ContentValues();
+                            cv.put("ts", System.currentTimeMillis());
+                            cv.put("date_j", Jal.today());
+                            cv.put("rate", g18);
+                            db.ins("rates", cv);
+                            U.toast(RateActivity.this, "نرخ طلای ۱۸ عیار به‌روز شد: " + U.money(g18) + " تومان ✓");
+                            refresh();
+                        } else {
+                            U.toast(RateActivity.this, "خطا در دریافت آنلاین نرخ");
+                        }
+                    }
+                });
+            }
+        }));
         body.addView(c);
 
         // معادل‌ها
