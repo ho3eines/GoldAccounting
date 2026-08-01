@@ -284,7 +284,7 @@ public class InvoiceNewActivity extends A {
             ln.unit = Math.round(rate * ln.karat / 750.0);
             ln.goldVal = Math.round(ln.wmw * ln.unit / 1000.0);
             ln.wage = ItemEditActivity.calcWage(ln.goldVal, ln.wmw, ln.wtype, ln.wval);
-            ln.tax = Math.round((ln.wage) * taxp / 100.0);
+            if (ln.title != null && ln.title.contains("ابشده")) ln.tax = 0; else ln.tax = Math.round((ln.wage) * taxp / 100.0);
             ln.total = ln.goldVal + ln.wage + ln.stone + ln.tax;
             gold += ln.goldVal; wage += ln.wage; stone += ln.stone; tax += ln.tax; total += ln.total;
         }
@@ -328,7 +328,7 @@ public class InvoiceNewActivity extends A {
             ln.unit = Math.round(rate * ln.karat / 750.0);
             ln.goldVal = Math.round(ln.wmw * ln.unit / 1000.0);
             ln.wage = ItemEditActivity.calcWage(ln.goldVal, ln.wmw, ln.wtype, ln.wval);
-            ln.tax = Math.round(ln.wage * taxp / 100.0);
+            if (ln.title != null && ln.title.contains("ابشده")) ln.tax = 0; else ln.tax = Math.round(ln.wage * taxp / 100.0);
             ln.total = ln.goldVal + ln.wage + ln.stone + ln.tax;
             r.addView(tv(U.karatName(ln.karat) + " • " + U.mw(ln.wmw) + " گرم × " + U.money(ln.unit), U.SUB, 12, false));
             r.addView(kv("طلای خام", U.money(ln.goldVal)));
