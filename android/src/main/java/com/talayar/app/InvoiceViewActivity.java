@@ -8,6 +8,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
+import java.util.ArrayList;
+
 /** نمایش فاکتور + اشتراک‌گذاری + ابطال با سند معکوس */
 public class InvoiceViewActivity extends A {
     private int iid;

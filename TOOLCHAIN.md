@@ -12,9 +12,9 @@
 | `janino-3.1.9.jar` + `commons-compiler-3.1.9.jar` | کامپایلر جاوا (به‌جای javac) | از داخل tarball `pyspark` روی PyPI |
 | `r8.jar` | D8/R8 نسخهٔ AOSP (تولید dex + پاک‌سازی android.jar) | ریپوی `LineageOS/android_prebuilts_r8` |
 | `platforms/android-21/android.jar` | پلتفرم کامپایل (مرجع برای aapt2/D8) | ریپوی `Sable/android-platforms` |
-| `android-lite/` | نسخهٔ پردازش‌شدهٔ android.jar بدون انوتیشن (سازگار با parserjanino، حاوی InnerClasses) | تولیدشده با R8 |
+| `android-lite.jar` | نسخهٔ پردازش‌شدهٔ android.jar بدون انوتیشن (سازگار با parser جانینو، حاوی InnerClasses) | با `strip_annotations.py` (حذف attributeهای انوتیشن) یا R8 ساخته می‌شود |
 | `apksigner.jar` | امضای APK (v2/v3) | پکیج npm `@postar/apktool-node` |
-| `gold.keystore` | کلید امضا (با keytool همین JRE ساخته شده) | محلی |
+| `gold.keystore` | کلید امضا (با keytool همین JRE ساخته شده؛ پسورد: goldpass) | محلی در `toolchain/` — خارج از گیت نگه‌داری می‌شود تا نسخه‌های بعدی با همین کلید امضا شوند |
 
 ## مراحل build.sh
 
@@ -26,5 +26,6 @@
 
 ## نکته‌ها
 
-- چرا android-lite؟ janino 3.1.9 هنگام خواندن انوتیشن‌های کلاس‌های android.jar باگ NYI می‌خورد؛ با R8 انوتیشن‌ها حذف و `InnerClasses` حفظ شده که هر دو پازل حل می‌شود.
+- چرا android-lite؟ janino 3.1.9 هنگام خواندن انوتیشن‌های کلاس‌های android.jar باگ NYI می‌خورد؛ انوتیشن‌ها حذف و `InnerClasses` حفظ می‌شود که هر دو پازل حل می‌شود (`strip_annotations.py` یا R8).
+- نسخهٔ خروجی: `VERSION=4.0 bash build.sh` (پیش‌فرض 4.0) — نام فایل در `publish/` و `versionCode/versionName` در `android/AndroidManifest.xml` متناظرند.
 - janino داری محدودیت‌های ژنریک است؛ به همین دلیل کد به سبک Java 7 (بدون لامبدا، با castهای صریح) نوشته شده است.
