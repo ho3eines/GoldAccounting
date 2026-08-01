@@ -118,6 +118,7 @@ public class InvoiceNewActivity extends A {
         body.addView(sumCard);
 
         addBtn(body, btn("⬇  ثبت فاکتور", new Tap() { public void go() { save(false); } }));
+        addBtn(body, gbtn("📄 پیش‌نمایش پیش‌فاکتور (PDF)", new Tap() { public void go() { exportPreInvoicePdf(); } }));
 
         android.text.TextWatcher tw = new android.text.TextWatcher() {
             public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
@@ -457,5 +458,30 @@ public class InvoiceNewActivity extends A {
         } finally {
             w.endTransaction();
         }
+    }
+
+    private void exportPreInvoicePdf() {
+        long rate = db.currentRate();
+        if (rate <= 0) {
+            msg("نرخ روز ثبت نشده", "قبل از صدور پیش‌فاکتور، نرخ امروز طلا را از بخش «نرخ طلا» ثبت کنید.");
+            return;
+        }
+        if (lines.isEmpty()) {
+            U.toast(this, "حداقل یک قلم اضافه کنید");
+            return;
+        }
+        long[] t = totals();
+        long[] pe = payEval();
+        long pcash = moneyOf(eCash);
+        long total = t[4];
+        long debt = total - pcash - pe[2];
+
+        ArrayList<InvoicePdf.LineInfo> pdfLines = new ArrayList<InvoicePdf.LineInfo>();
+        for (int i = 0; i < lines.size(); i++) {
+            Line ln = (Line) lines.get(i);
+            pdfLines.add(new InvoicePdf.LineInfo(ln.title, ln.karat, ln.wmw, ln.unit, ln.total));
+        }
+
+        InvoicePdf.generateAndShare(this, db, true, 0, dateJ, cname, rate, total, pcash, pe[0], pe[2], payKarat, debt, U.str(eNote), pdfLines);
     }
 }
