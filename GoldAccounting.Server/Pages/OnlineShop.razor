@@ -1,80 +1,198 @@
+@page "/shop"
 @page "/onlineshop"
 @inject AppDbContext Db
+@inject TalayarService Svc
 
-<PageTitle>کاتالوگ محصولات و انبار فروشگاه</PageTitle>
+<PageTitle>فروشگاه آنلاین طلایار</PageTitle>
 
 <div class="space-y-6">
-    <!-- Header with Shop & Contact Info -->
-    <div class="bg-gradient-to-r from-slate-900 via-amber-900 to-amber-700 text-white p-6 md:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
-        <div class="space-y-2 text-center md:text-right">
-            <span class="bg-amber-500 text-slate-900 text-xs px-3 py-1 rounded-full font-bold">نمایشگاه آنلاین کالا و انبار</span>
-            <h2 class="text-2xl md:text-3xl font-bold">🪙 کاتالوگ طلایار</h2>
-            <p class="text-amber-100 text-sm max-w-xl">مشتریان عزیز می‌توانند اقلام و محصولات موجود در انبار را مشاهده کرده و جهت خرید و استعلام قیمت دقیق با فروشگاه تماس بگیرند.</p>
-        </div>
-        <div class="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/20 text-center space-y-2 min-w-[240px]">
-            <p class="text-xs text-amber-200 font-bold">📞 اطلاعات تماس فروشگاه</p>
-            <p class="text-lg font-bold text-white tracking-wide">۰۲۱-۸۸۸۸۰۰۰۰</p>
-            <p class="text-xs text-slate-300">تهران، بازار طلا و جواهر</p>
+    <!-- Hero + نرخ روز -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-amber-950 to-amber-800 text-white p-6 md:p-8 shadow-xl">
+        <div class="absolute -left-16 -top-16 w-56 h-56 bg-amber-400/10 rounded-full blur-3xl"></div>
+        <div class="absolute -right-10 -bottom-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl"></div>
+
+        <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="space-y-3">
+                <span class="inline-flex items-center gap-1.5 bg-amber-500 text-slate-900 text-xs px-3 py-1.5 rounded-full font-black shadow">🪙 نمایشگاه آنلاین طلایار</span>
+                <h2 class="text-2xl md:text-3xl font-black leading-tight">کاتالوگ محصولات<br class="sm:hidden" /> و انبار</h2>
+                <p class="text-amber-100/80 text-sm max-w-xl leading-relaxed">
+                    قیمت همهٔ کالاها بر اساس <b class="text-amber-300">نرخ روز طلا</b> به‌صورت زنده محاسبه می‌شود —
+                    کافی است نرخ امروز را در «نرخ روز طلا» ثبت کنید تا قیمت‌ها همان لحظه در سایت به‌روز شوند.
+                </p>
+                <div class="flex flex-wrap gap-2 pt-1">
+                    <a href="/rates" class="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl px-4 py-2 text-xs font-bold transition">🪙 ثبت نرخ امروز</a>
+                    <a href="/shop/requests" class="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl px-4 py-2 text-xs font-bold transition">📩 درخواست‌های خرید</a>
+                </div>
+            </div>
+
+            <!-- کارت نرخ -->
+            <div class="bg-white/10 backdrop-blur-md rounded-2xl border border-white/15 p-5 min-w-[250px] text-center space-y-2">
+                <p class="text-[11px] text-amber-200 font-bold">نرخ مبنای قیمت‌گذاری (گرم ۱۸ عیار)</p>
+                @if (rateInfo.rate > 0)
+                {
+                    <p class="text-3xl font-black text-amber-400 leading-none">@Talayar.Money(rateInfo.rate)</p>
+                    <p class="text-xs text-slate-300">تومان</p>
+                    <p class="text-[10px] text-slate-400">آخرین به‌روزرسانی: @Talayar.Dig(rateInfo.dateJ)</p>
+                    @if (rateInfo.today)
+                    {
+                        <span class="inline-block badge bg-green-500 text-white">✓ قیمت‌ها با نرخ امروز محاسبه شده‌اند</span>
+                    }
+                    else
+                    {
+                        <span class="inline-block badge bg-amber-500 text-slate-900">⚠ نرخ امروز ثبت نشده — قیمت‌ها بر اساس آخرین نرخ</span>
+                    }
+                }
+                else
+                {
+                    <p class="text-xl font-black text-red-300 leading-none">ثبت نشده</p>
+                    <p class="text-[10px] text-slate-400">برای نمایش قیمت، ابتدا نرخ روز را ثبت کنید</p>
+                    <span class="inline-block badge bg-red-500 text-white">✗ قیمت‌ها غیرفعال</span>
+                }
+            </div>
         </div>
     </div>
 
-    <!-- Catalog Grid -->
-    <div class="space-y-4">
-        <h3 class="text-xl font-bold text-gray-800 flex items-center">
-            <span class="ml-2">📦</span> محصولات موجود در انبار
-        </h3>
+    <!-- جستجو و فیلتر -->
+    <div class="card-lux p-4 md:p-5 space-y-3">
+        <div class="flex flex-col md:flex-row gap-3">
+            <div class="flex-1 relative">
+                <span class="absolute inset-y-0 right-3 flex items-center text-gray-400">🔍</span>
+                <input @bind="q" @bind:event="oninput" placeholder="جستجوی نام کالا یا کد…"
+                       class="w-full border rounded-xl pr-10 p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 whitespace-nowrap">عیار:</span>
+                <div class="flex flex-wrap gap-1">
+                    @for (int i = 0; i < karatFilters.Count; i++)
+                    {
+                        var idx = i;
+                        <button @onclick="() => karatFilter = karatFilters[idx]"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition @(karatFilter == karatFilters[idx] ? "bg-amber-600 text-white shadow" : "bg-gray-100 text-gray-600 hover:bg-gray-200")">
+                            @(karatFilters[idx] == 0 ? "همه" : Talayar.KaratName(karatFilters[idx]))
+                        </button>
+                    }
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 whitespace-nowrap">مرتب‌سازی:</span>
+                <div class="flex gap-1">
+                    @for (int i = 0; i < sortLabels.Length; i++)
+                    {
+                        var idx = i;
+                        <button @onclick="() => sortMode = idx"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition @(sortMode == idx ? "bg-slate-800 text-white shadow" : "bg-gray-100 text-gray-600 hover:bg-gray-200")">@sortLabels[idx]</button>
+                    }
+                </div>
+            </div>
+        </div>
+        <p class="text-[11px] text-gray-400">@Talayar.Dig(items.Count) کالای موجود در انبار</p>
+    </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            @foreach (var item in items)
+    <!-- گرید محصولات -->
+    @if (items.Any())
+    {
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
+            @foreach (var p in items)
             {
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition">
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-start">
-                            <span class="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full font-bold">عیار @item.Karat</span>
-                            <span class="text-xs font-mono text-gray-400">کد: @item.Code</span>
-                        </div>
-                        <h4 class="text-lg font-bold text-gray-900">@item.Name</h4>
-                        <p class="text-xs text-gray-500">وزن خالص: @item.Wmw.ToString("N0") میلی‌گرم</p>
-                        @if (!string.IsNullOrEmpty(item.Descr))
+                <div class="card-lux p-4 flex flex-col">
+                    <!-- تصویر -->
+                    <a href="/shop/@p.Item.Id" class="relative block h-36 rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-amber-950 flex items-center justify-center overflow-hidden group">
+                        <span class="text-6xl drop-shadow-lg transition group-hover:scale-110">🪙</span>
+                        <span class="absolute top-2 right-2 badge bg-black/40 text-amber-300 font-mono">کد @Talayar.Dig(p.Item.Code)</span>
+                        <span class="absolute top-2 left-2 badge @(p.Item.Status == "stock" ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white")">@(p.Item.Status == "stock" ? "موجود" : "ناموجود")</span>
+                    </a>
+
+                    <!-- اطلاعات -->
+                    <div class="mt-3 flex-1">
+                        <h3 class="font-bold text-gray-800 leading-snug">@p.Item.Name</h3>
+                        <p class="text-xs text-gray-500 mt-1">
+                            @Talayar.KaratName(p.Item.Karat) • @Talayar.Mw(p.Item.Wmw) گرم
+                            @if (p.Item.StoneVal > 0)
+                            {
+                                <span> • سنگ @Talayar.Money(p.Item.StoneVal)</span>
+                            }
+                        </p>
+                        @if (p.total > 0)
                         {
-                            <p class="text-xs text-gray-600 bg-gray-50 p-2 rounded-xl">@item.Descr</p>
+                            <p class="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                                طلا @Talayar.Money(p.gold) • اجرت @Talayar.Money(p.wage)
+                                @if (p.tax > 0) { <span>• مالیات @Talayar.Money(p.tax)</span> }
+                            </p>
                         }
                     </div>
 
-                    <div class="mt-6 pt-4 border-t flex justify-between items-center">
+                    <!-- قیمت و اقدام -->
+                    <div class="mt-3 pt-3 border-t flex items-end justify-between gap-2">
                         <div>
-                            <p class="text-xs text-gray-400">قیمت پایه برآوردی</p>
-                            <p class="text-amber-700 font-bold text-base mt-0.5">@((item.WVal > 0 ? item.WVal : 80875000).ToString("N0")) <span class="text-xs font-normal">تومان</span></p>
+                            <p class="text-[10px] text-gray-400">قیمت روز (نرخ @Talayar.Dig(rateInfo.dateJ))</p>
+                            <p class="text-amber-700 font-black text-base leading-tight">@(p.total > 0 ? Talayar.Money(p.total) + " تومان" : "—")</p>
                         </div>
-                        <a href="tel:02188880000" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow transition flex items-center">
-                            📞 تماس جهت خرید
-                        </a>
+                        <a href="/shop/@p.Item.Id" class="btn-gold text-[11px] px-3.5 py-2">خرید / استعلام</a>
                     </div>
                 </div>
             }
-            @if (!items.Any())
-            {
-                <div class="col-span-full bg-white p-12 text-center text-gray-500 rounded-2xl border shadow-sm">
-                    محصولی در انبار یافت نشد.
-                </div>
-            }
         </div>
-    </div>
+    }
+    else
+    {
+        <div class="card-lux p-12 text-center">
+            <p class="text-4xl mb-3">🔍</p>
+            <p class="text-gray-500 font-bold">کالایی مطابق جستجو پیدا نشد.</p>
+            <p class="text-xs text-gray-400 mt-1">فیلترها را تغییر دهید یا از «اجناس و انبار» کالای جدید ثبت کنید.</p>
+        </div>
+    }
 </div>
 
 @code {
-    private List<Item> items = new();
+    private class Priced
+    {
+        public Item Item = null!;
+        public long gold, wage, tax, total;
+    }
+
+    private readonly List<int> karatFilters = new() { 0, 1000, 916, 875, 750, 585, 375 };
+    private readonly string[] sortLabels = { "جدیدترین", "ارزان‌ترین", "گران‌ترین", "نام" };
+
+    private List<Priced> items = new();
+    private (long rate, bool today, string dateJ) rateInfo;
+    private string q = "";
+    private int karatFilter;
+    private int sortMode;
 
     protected override void OnInitialized()
     {
-        items = Db.Items.Where(i => i.Status == "stock").ToList();
-        if (!items.Any())
+        rateInfo = Svc.ShopRateInfo();
+        Load();
+    }
+
+    private void Load()
+    {
+        var query = Db.Items.Where(i => i.Status == "stock").ToList();
+
+        // جستجو
+        string sq = Talayar.En(q).Trim();
+        if (sq.Length > 0)
+            query = query.Where(i => Talayar.En(i.Name + " " + i.Code).Contains(sq)).ToList();
+
+        // فیلتر عیار
+        if (karatFilter != 0)
+            query = query.Where(i => i.Karat == karatFilter).ToList();
+
+        // قیمت‌گذاری با نرخ روز
+        var priced = query.Select(i => new Priced { Item = i }).ToList();
+        foreach (var p in priced)
         {
-            Db.Items.Add(new Item { Code = 101, Name = "انگشتر طلای طرح ملکه", Karat = 18, Wmw = 5400, WVal = 120000000, Status = "stock", Descr = "بسیار شیک و پرطرفدار", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-            Db.Items.Add(new Item { Code = 102, Name = "دستبند طلا کارتیه", Karat = 18, Wmw = 12500, WVal = 265000000, Status = "stock", Descr = "مدل جدید و ظریف", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-            Db.Items.Add(new Item { Code = 103, Name = "سرویس کامل طلا عروس", Karat = 18, Wmw = 45000, WVal = 950000000, Status = "stock", Descr = "مخصوص مراسم و سرمایه‌گذاری", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-            Db.SaveChanges();
-            items = Db.Items.Where(i => i.Status == "stock").ToList();
+            var (gold, wage, tax, total) = Svc.ItemPrice(p.Item, rateInfo.rate);
+            p.gold = gold; p.wage = wage; p.tax = tax; p.total = total;
         }
+
+        // مرتب‌سازی
+        items = sortMode switch
+        {
+            1 => priced.OrderBy(p => p.total).ToList(),
+            2 => priced.OrderByDescending(p => p.total).ToList(),
+            3 => priced.OrderBy(p => p.Item.Name).ToList(),
+            _ => priced.OrderByDescending(p => p.Item.Cts).ToList()
+        };
     }
 }

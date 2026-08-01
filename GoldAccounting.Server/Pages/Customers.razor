@@ -1,60 +1,333 @@
 @page "/customers"
 @inject AppDbContext Db
+@inject TalayarService Svc
 
 <PageTitle>مدیریت مشتریان و حساب‌ها</PageTitle>
 
 <div class="space-y-6">
-    <div class="flex justify-between items-center">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">👥 مدیریت مشتریان و اشخاص</h2>
-            <p class="text-sm text-gray-500 mt-1">مشاهده لیست مشتریان، بنکداران و حساب‌های مالی آن‌ها.</p>
+            <p class="text-sm text-gray-500 mt-1">کد حساب + گروه حساب، فیلتر (نام/تلفن/بازه کد) و مانده چند مشتری.</p>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick="() => { editingId = 0; OpenForm(); }" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ مشتری / حساب جدید</button>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table class="w-full text-right border-collapse">
-            <thead>
-                <tr class="bg-gray-50 text-xs text-gray-600 border-b">
-                    <th class="p-4">کد حساب</th>
-                    <th class="p-4">نام مشتری</th>
-                    <th class="p-4">تلفن</th>
-                    <th class="p-4">گروه</th>
-                    <th class="p-4">آدرس</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y text-sm text-gray-700">
-                @foreach (var c in customers)
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <!-- وضعیت کلی -->
+    @{
+        var sp = Svc.CustomerDebtSplit();
+    }
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">مجموع بدهی نقدی مشتریان به ما</p>
+            <p class="text-lg font-bold text-amber-700 mt-1">@Talayar.Money(sp.debtC) تومان</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">بستانکاری نقدی ما به مشتریان</p>
+            <p class="text-lg font-bold text-green-600 mt-1">@Talayar.Money(sp.credC) تومان</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">بدهی طلایی مشتریان (۱۸ معادل)</p>
+            <p class="text-lg font-bold text-amber-700 mt-1">@(sp.debtG != 0 ? Talayar.Gs(sp.debtG) : "—")</p>
+        </div>
+    </div>
+
+    <!-- فیلترها -->
+    <div class="bg-white rounded-2xl shadow-sm border p-5 space-y-3">
+        <input @bind="q" @bind:event="oninput" placeholder="جستجو: نام حساب یا شماره تلفن…" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+        <div class="flex flex-col md:flex-row gap-3 items-center">
+            <input @bind="fromCode" placeholder="از کد حساب" class="flex-1 border rounded-xl p-2.5 text-sm" />
+            <input @bind="toCode" placeholder="تا کد حساب" class="flex-1 border rounded-xl p-2.5 text-sm" />
+            <button @onclick="ClearFilters" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm">همه</button>
+            <button @onclick="ShowGroupBalance" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm">📊 مانده چند مشتری (تفکیک گروه)</button>
+        </div>
+    </div>
+
+    @if (formOpen)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+            <h3 class="text-lg font-bold text-gray-800">@(editingId == 0 ? "ثبت مشتری / حساب جدید" : "ویرایش حساب")</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">نام و نام خانوادگی</label>
+                    <input @bind="fName" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">کد حساب</label>
+                    <input @bind="fCode" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">گروه حساب</label>
+                    <select @bind="fGrp" class="w-full border rounded-xl p-2.5 text-sm">
+                        <option value="">— بدون گروه —</option>
+                        @foreach (var g in Db.Defs.Where(d => d.Kind == "group").OrderBy(d => d.Id))
+                        {
+                            <option value="@g.Name">@g.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">تلفن</label>
+                    <input @bind="fPhone" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">نشانی</label>
+                    <input @bind="fAddr" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">یادداشت</label>
+                    <input @bind="fNote" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">تاریخ تولد (شمسی — ۱۳۶۸/۰۵/۰۹)</label>
+                    <input @bind="fBirthday" class="w-full border rounded-xl p-2.5 text-sm" placeholder="مثلاً ۱۳۶۸/۰۵/۰۹" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">سالگرد ازدواج (شمسی)</label>
+                    <input @bind="fAnniversary" class="w-full border rounded-xl p-2.5 text-sm" placeholder="مثلاً ۱۳۹۵/۰۳/۱۴" />
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button @onclick="SaveCustomer" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">@(editingId == 0 ? "ثبت" : "ذخیره")</button>
+                <button @onclick="() => formOpen = false" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    @if (groupReport != null)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-gray-800">مانده حساب — @(groupReport.grp.Length == 0 ? "همهٔ گروه‌ها" : "گروه «" + groupReport.grp + "»")</h3>
+                <button @onclick="() => groupReport = null" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+            </div>
+            <div class="flex flex-col md:flex-row gap-3 items-center">
+                <select @bind="groupReport.grp" class="border rounded-xl p-2.5 text-sm">
+                    <option value="">— همهٔ گروه‌ها —</option>
+                    @foreach (var g in Db.Defs.Where(d => d.Kind == "group").OrderBy(d => d.Id))
+                    {
+                        <option value="@g.Name">@g.Name</option>
+                    }
+                </select>
+                <input @bind="groupDate" placeholder="تا تاریخ (اختیاری — ۱۴۰۵/۰۵/۰۹)" class="flex-1 border rounded-xl p-2.5 text-sm" />
+                <button @onclick="FillGroup" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm">محاسبه</button>
+            </div>
+            <div class="divide-y max-h-96 overflow-y-auto">
+                @foreach (var row in groupRows)
                 {
-                    <tr>
-                        <td class="p-4 font-mono font-bold text-amber-600">@c.Code</td>
-                        <td class="p-4 font-semibold">@c.Name</td>
-                        <td class="p-4">@c.Phone</td>
-                        <td class="p-4"><span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded">@c.Grp</span></td>
-                        <td class="p-4 text-gray-500">@c.Address</td>
-                    </tr>
+                    <div class="py-3 flex justify-between items-center text-sm">
+                        <div>
+                            <span class="text-amber-700 font-bold ml-2">@Talayar.Dig(row.code)</span>
+                            <b>@row.name</b>
+                            @if (row.phone.Length > 0) { <span class="text-gray-400 text-xs mr-2">☎ @Talayar.Dig(row.phone)</span> }
+                        </div>
+                        <div class="text-left">
+                            <p class="@(row.cash > 0 ? "text-amber-700" : row.cash < 0 ? "text-green-600" : "text-gray-400") font-bold">
+                                @(row.cash > 0 ? Talayar.Money(row.cash) + " بدهکار" : row.cash < 0 ? Talayar.Money(-row.cash) + " بستانکار" : "تسویه")
+                            </p>
+                            @if (row.gold != 0)
+                            {
+                                <p class="text-xs @(row.gold > 0 ? "text-amber-700" : "text-green-600")">@Talayar.Gs(Math.Abs(row.gold)) @(row.gold > 0 ? "بدهکار" : "بستانکار")</p>
+                            }
+                        </div>
+                    </div>
                 }
-                @if (!customers.Any())
+                @if (!groupRows.Any())
                 {
-                    <tr>
-                        <td colspan="5" class="p-8 text-center text-gray-500">هیچ مشتری ثبت نشده است.</td>
-                    </tr>
+                    <p class="py-6 text-center text-gray-400 text-sm">حسابی با ماندهٔ غیرصفر یافت نشد.</p>
                 }
-            </tbody>
-        </table>
+            </div>
+            @if (groupRows.Any())
+            {
+                <div class="bg-amber-50 rounded-xl p-4 font-bold text-sm text-amber-900">
+                    مجموع (@Talayar.Dig(groupRows.Count) حساب): @Talayar.Money(groupRows.Sum(r => r.cash)) تومان
+                    @if (groupRows.Sum(r => r.gold) != 0)
+                    {
+                        <span> + @Talayar.Gs(groupRows.Sum(r => r.gold))</span>
+                    }
+                    @if (groupDate.Trim().Length >= 10) { <span> (تا تاریخ @Talayar.Dig(groupDate.Trim()))</span> }
+                </div>
+            }
+        </div>
+    }
+
+    <!-- لیست -->
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="divide-y">
+            @foreach (var row in customers)
+            {
+                <a href="/customers/@row.c.Id" class="p-5 flex items-center justify-between gap-3 hover:bg-gray-50 block">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-amber-600 font-mono font-bold text-sm">@Talayar.Dig(row.c.Code)</span>
+                            <p class="font-bold text-gray-800">@row.c.Name</p>
+                            <span class="text-xs px-2.5 py-0.5 rounded-full font-bold @(row.cash > 0 ? "bg-amber-100 text-amber-800" : row.cash < 0 ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500")">
+                                @(row.cash > 0 ? "بدهکار " + Talayar.Money(row.cash) : row.cash < 0 ? "بستانکار " + Talayar.Money(-row.cash) : "تسویه")
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            @(row.c.Grp.Length > 0 ? row.c.Grp + " • " : "")@(row.c.Phone.Length > 0 ? "☎ " + Talayar.Dig(row.c.Phone) : "بدون تلفن")
+                            @if (row.gold != 0)
+                            {
+                                <span class="@(row.gold > 0 ? "text-amber-700" : "text-green-600") font-bold"> • @Talayar.Gs(Math.Abs(row.gold)) @(row.gold > 0 ? "بدهکار" : "بستانکار")</span>
+                            }
+                        </p>
+                    </div>
+                    <span class="text-gray-300 text-lg">‹</span>
+                </a>
+            }
+            @if (!customers.Any())
+            {
+                <p class="p-10 text-center text-gray-400 text-sm">حسابی یافت نشد — با «مشتری/حساب جدید» اضافه کنید.</p>
+            }
+        </div>
     </div>
 </div>
 
 @code {
-    private List<Customer> customers = new();
+    class RowView
+    {
+        public int code;
+        public string name = "", phone = "";
+        public long cash, gold;
+    }
+    class GroupReport
+    {
+        public string grp = "";
+    }
+
+    private List<(Customer c, long cash, long gold)> customers = new();
+    private string q = "", fromCode = "", toCode = "", msg = "", err = "";
+
+    private bool formOpen;
+    private int editingId;
+    private string fName = "", fCode = "", fGrp = "", fPhone = "", fAddr = "", fNote = "", fBirthday = "", fAnniversary = "";
+
+    private GroupReport? groupReport;
+    private List<RowView> groupRows = new();
+    private string groupDate = "";
 
     protected override void OnInitialized()
     {
-        customers = Db.Customers.ToList();
-        if (!customers.Any())
+        Load();
+    }
+
+    private void Load()
+    {
+        var all = Db.Customers.OrderBy(c => c.Code).ToList();
+        string sq = Talayar.En(q).Trim();
+        long cf = Talayar.ParseMoney(fromCode), ct = Talayar.ParseMoney(toCode);
+        customers = new();
+        foreach (var c in all)
         {
-            Db.Customers.Add(new Customer { Code = 1, Name = "مشتری عمومی (نقدی)", Phone = "09120000000", Grp = "مشتریان", Address = "تهران", Cts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() });
-            Db.SaveChanges();
-            customers = Db.Customers.ToList();
+            if (sq.Length > 0 && !Talayar.En(c.Name + " " + c.Phone).Contains(sq)) continue;
+            if (cf > 0 && c.Code < cf) continue;
+            if (ct > 0 && c.Code > ct) continue;
+            var s = Svc.CustomerSums(c.Id);
+            customers.Add((c, s.cash, s.gold));
+        }
+    }
+
+    private void ClearFilters()
+    {
+        fromCode = "";
+        toCode = "";
+        q = "";
+        Load();
+    }
+
+    private void OpenForm()
+    {
+        msg = ""; err = "";
+        if (editingId == 0)
+        {
+            long next = (Db.Customers.Any() ? Db.Customers.Max(c => c.Code) : 0) + 1;
+            fName = ""; fCode = next.ToString(); fGrp = ""; fPhone = ""; fAddr = ""; fNote = ""; fBirthday = ""; fAnniversary = "";
+        }
+        else
+        {
+            var c = Db.Customers.FirstOrDefault(x => x.Id == editingId);
+            if (c != null)
+            {
+                fName = c.Name; fCode = c.Code.ToString(); fGrp = c.Grp;
+                fPhone = c.Phone; fAddr = c.Address; fNote = c.Note;
+                fBirthday = c.BirthdayJ; fAnniversary = c.AnniversaryJ;
+            }
+        }
+        formOpen = true;
+    }
+
+    private void SaveCustomer()
+    {
+        err = ""; msg = "";
+        if (fName.Trim().Length == 0) { err = "نام را بنویسید"; return; }
+        long cd = Talayar.ParseMoney(fCode);
+        if (cd <= 0) { err = "کد حساب معتبر نیست"; return; }
+        if (Db.Customers.Any(c => c.Code == cd && c.Id != editingId)) { err = "این کد حساب قبلاً استفاده شده"; return; }
+
+        if (editingId == 0)
+        {
+            Db.Customers.Add(new Customer
+            {
+                Code = (int)cd,
+                Name = fName.Trim(),
+                Grp = fGrp,
+                Phone = Talayar.En(fPhone),
+                Address = fAddr.Trim(),
+                Note = fNote.Trim(),
+                BirthdayJ = Talayar.En(fBirthday).Trim(),
+                AnniversaryJ = Talayar.En(fAnniversary).Trim(),
+                Cts = DateTimeOffset.Now.ToUnixTimeMilliseconds()
+            });
+        }
+        else
+        {
+            var c = Db.Customers.FirstOrDefault(x => x.Id == editingId);
+            if (c != null)
+            {
+                c.Code = (int)cd; c.Name = fName.Trim(); c.Grp = fGrp;
+                c.Phone = Talayar.En(fPhone); c.Address = fAddr.Trim(); c.Note = fNote.Trim();
+                c.BirthdayJ = Talayar.En(fBirthday).Trim(); c.AnniversaryJ = Talayar.En(fAnniversary).Trim();
+            }
+        }
+        Db.SaveChanges();
+        msg = "ذخیره شد ✓";
+        formOpen = false;
+        Load();
+    }
+
+    private void ShowGroupBalance()
+    {
+        groupReport = new GroupReport();
+        groupRows = new();
+        groupDate = "";
+        FillGroup();
+    }
+
+    private void FillGroup()
+    {
+        if (groupReport == null) return;
+        groupRows = new();
+        string maxDate = Talayar.En(groupDate).Trim();
+        if (maxDate.Length >= 10 && !Talayar.Jal.Valid(maxDate)) maxDate = "";
+        var list = Db.Customers.OrderBy(c => c.Code).ToList();
+        if (groupReport.grp.Length > 0) list = list.Where(c => c.Grp == groupReport.grp).ToList();
+        foreach (var c in list)
+        {
+            var s = maxDate.Length >= 10 ? Svc.CustomerSumsUpTo(c.Id, maxDate) : Svc.CustomerSums(c.Id);
+            if (s.cash == 0 && s.gold == 0) continue;
+            groupRows.Add(new RowView { code = c.Code, name = c.Name, phone = c.Phone, cash = s.cash, gold = s.gold });
         }
     }
 }

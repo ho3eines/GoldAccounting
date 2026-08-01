@@ -1,0 +1,173 @@
+@page "/gold"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>طلای آب‌شده / کارکرده</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">⚖️ طلای آب‌شده / کارکرده</h2>
+            <p class="text-sm text-gray-500 mt-1">موجودی بر اساس گرم معادل ۱۸ عیار، ورود/خروج دستی و ارزش روز.</p>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick="() => OpenTx(true)" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ ورود دستی طلا</button>
+            <button @onclick="() => OpenTx(false)" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">− خروج دستی طلا</button>
+        </div>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    @{
+        long rate = Svc.CurrentRate();
+    }
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-gradient-to-br from-slate-900 to-amber-900 text-white p-6 rounded-2xl shadow-xl">
+            <p class="text-amber-200 text-sm">موجودی طلا (۱۸ معادل)</p>
+            <p class="text-3xl font-bold mt-2 text-amber-400">@Talayar.Mw(g.eq) گرم</p>
+            <p class="text-xs text-amber-100/70 mt-2">وزن خام: @Talayar.Mw(g.raw) گرم</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">ارزش روز تقریبی</p>
+            <p class="text-xl font-bold text-amber-700 mt-1">@(rate > 0 ? Talayar.Money((long)Math.Round(g.eq * rate / 1000.0)) + " تومان" : "—")</p>
+            <p class="text-xs text-gray-400 mt-1">نرخ روز: @(rate > 0 ? Talayar.Money(rate) + " تومان" : "ثبت نشده")</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">تفکیک بر اساس عیار</p>
+            <div class="mt-2 space-y-1 text-xs">
+                @foreach (var k in byKarat)
+                {
+                    <div class="flex justify-between"><span>@Talayar.KaratName(k.karat) (@Talayar.Dig(k.n) قلم)</span><b>@Talayar.Gs(k.w) ≈ @Talayar.Gs(Talayar.Equiv750(k.w, k.karat))</b></div>
+                }
+                @if (!byKarat.Any())
+                {
+                    <p class="text-gray-400">گردشی ثبت نشده است.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (txOpen)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">@(txIn ? "ورود دستی طلا (آب‌شده/دستی)" : "خروج دستی طلا")</h3>
+            <input @bind="txW" placeholder="وزن (گرم)" class="w-full border rounded-xl p-3 text-sm" />
+            <div class="flex gap-1">
+                @for (int i = 0; i < Talayar.KARAT_LABELS.Length; i++)
+                {
+                    var idx = i;
+                    <button @onclick="() => txKarat = Talayar.KARATS[idx]" class="flex-1 py-2 rounded-lg text-xs font-bold transition @(txKarat == Talayar.KARATS[idx] ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600")">@Talayar.KARAT_LABELS[idx]</button>
+                }
+            </div>
+            <input @bind="txDescr" placeholder="شرح" class="w-full border rounded-xl p-3 text-sm" />
+            <div class="flex gap-2">
+                <button @onclick="DoTx" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ثبت</button>
+                <button @onclick="() => txOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50"><h3 class="font-bold text-gray-800">گردش طلا</h3></div>
+        <div class="divide-y">
+            @foreach (var t in list)
+            {
+                <div class="p-4 flex justify-between items-center hover:bg-gray-50">
+                    <div>
+                        <p class="text-sm font-bold @(t.Kind != "out" ? "text-green-600" : "text-red-500")">@(t.Kind != "out" ? "↙ ورود" : "↗ خروج")</p>
+                        <p class="text-xs text-gray-500 mt-0.5">@Talayar.Dig(t.DateJ) • @t.Descr (@Talayar.Mw(t.Wmw) گرم @Talayar.KaratName(t.Karat))</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <b class="text-sm @(t.Kind != "out" ? "text-green-600" : "text-red-500")">@(t.Kind != "out" ? "+" : "−")@Talayar.Mw(Talayar.Equiv750(t.Wmw, t.Karat)) گرم</b>
+                        <button @onclick="() => DeleteTx(t.Id)" class="text-red-400 hover:text-red-600 text-xs font-bold">🗑</button>
+                    </div>
+                </div>
+            }
+            @if (!list.Any())
+            {
+                <p class="p-8 text-center text-gray-400 text-sm">تراکنشی ثبت نشده — از خرید طلای کارکرده یا ورود دستی استفاده کنید.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private (long raw, long eq) g;
+    private List<GoldTransactionEntity> list = new();
+    private List<(int karat, long w, int n)> byKarat = new();
+    private string msg = "", err = "";
+
+    private bool txOpen;
+    private bool txIn;
+    private string txW = "", txDescr = "";
+    private int txKarat = 750;
+
+    protected override void OnInitialized() { Load(); }
+
+    private void Load()
+    {
+        g = Svc.GoldBalance();
+        list = Db.GoldTransactions.OrderByDescending(c => c.Ts).ThenByDescending(c => c.Id).Take(200).ToList();
+        byKarat = list
+            .GroupBy(x => x.Karat)
+            .Select(x => (x.Key, x.Sum(t => t.Kind == "out" ? -t.Wmw : t.Wmw), x.Count()))
+            .Where(x => x.Item2 != 0)
+            .OrderByDescending(x => x.Key)
+            .ToList();
+    }
+
+    private void OpenTx(bool isIn)
+    {
+        txIn = isIn;
+        txW = "";
+        txDescr = "";
+        txKarat = 750;
+        txOpen = true;
+        err = "";
+    }
+
+    private void DoTx()
+    {
+        err = "";
+        long w = Talayar.ParseMw(txW);
+        if (w <= 0) { err = "وزن نامعتبر"; return; }
+        if (!txIn)
+        {
+            var bal = Svc.GoldBalance();
+            if (Talayar.Equiv750(w, txKarat) > bal.eq) { err = "موجودی کافی نیست"; return; }
+        }
+        string desc = txDescr.Trim();
+        if (desc.Length == 0) desc = (txIn ? "ورود دستی " : "خروج دستی ") + Talayar.Mw(w) + " گرم " + Talayar.KaratName(txKarat);
+        Db.GoldTransactions.Add(new GoldTransactionEntity
+        {
+            Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            DateJ = Talayar.Jal.Today(),
+            Kind = txIn ? "in" : "out",
+            Wmw = w,
+            Karat = txKarat,
+            Descr = desc,
+            Cid = 0,
+            DocId = 0,
+            TransferCode = "web-gold-" + Guid.NewGuid().ToString("N").Substring(0, 8)
+        });
+        Db.SaveChanges();
+        msg = "ثبت شد ✓";
+        txOpen = false;
+        Load();
+    }
+
+    private void DeleteTx(int id)
+    {
+        var t = Db.GoldTransactions.FirstOrDefault(x => x.Id == id);
+        if (t != null) { Db.GoldTransactions.Remove(t); Db.SaveChanges(); }
+        msg = "حذف شد ✓";
+        Load();
+    }
+}

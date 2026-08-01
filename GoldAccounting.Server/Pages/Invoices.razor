@@ -1,5 +1,6 @@
 @page "/invoices"
 @inject AppDbContext Db
+@inject TalayarService Svc
 
 <PageTitle>مدیریت فاکتورها و فروش</PageTitle>
 
@@ -7,8 +8,40 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">🧾 مدیریت فاکتورها و ماژول فروش</h2>
-            <p class="text-sm text-gray-500 mt-1">مشاهده، پیگیری و چاپ فاکتورهای صادر شده از نرم‌افزار اندروید و فروشگاه آنلاین.</p>
+            <p class="text-sm text-gray-500 mt-1">صدور فاکتور از وب، مشاهده و چاپ فاکتورهای همگام‌سازی‌شده از اندروید.</p>
         </div>
+        <a href="/invoices/new" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ فاکتور فروش جدید</a>
+    </div>
+
+    <!-- آمار فروش -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        @{
+            var today = Svc.SalesStats(Talayar.Jal.Today());
+            var month = Svc.SalesStats(Talayar.Jal.ThisMonth());
+        }
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">فروش امروز</p>
+            <p class="text-lg font-bold text-gray-800 mt-1">@Talayar.Dig(today[0]) فاکتور</p>
+            <p class="text-amber-700 font-bold text-sm">@Talayar.Money(today[1]) تومان</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">فروش این ماه</p>
+            <p class="text-lg font-bold text-gray-800 mt-1">@Talayar.Dig(month[0]) فاکتور</p>
+            <p class="text-amber-700 font-bold text-sm">@Talayar.Money(month[1]) تومان</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">اجرت دریافتی (ماه)</p>
+            <p class="text-lg font-bold text-green-600 mt-1">@Talayar.Money(month[2]) تومان</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">مالیات جمع‌شده (ماه)</p>
+            <p class="text-lg font-bold text-gray-800 mt-1">@Talayar.Money(month[3]) تومان</p>
+        </div>
+    </div>
+
+    <!-- جستجو -->
+    <div>
+        <input @bind="q" @bind:event="oninput" placeholder="جستجو: شماره یا نام مشتری…" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
     </div>
 
     <!-- Invoices Card / Table -->
@@ -30,16 +63,17 @@
                     @foreach (var inv in invoices)
                     {
                         <tr class="hover:bg-gray-50">
-                            <td class="p-4 font-bold text-amber-600">@inv.Id</td>
-                            <td class="p-4">@inv.DateJ</td>
+                            <td class="p-4 font-bold text-amber-600">@Talayar.Dig(inv.Id)</td>
+                            <td class="p-4">@Talayar.Dig(inv.DateJ)</td>
                             <td class="p-4 font-semibold">@inv.Cname</td>
-                            <td class="p-4 font-bold text-gray-900">@inv.Total.ToString("N0")</td>
-                            <td class="p-4 text-green-600">@inv.Pcash.ToString("N0")</td>
-                            <td class="p-4 text-red-600">@inv.Debt.ToString("N0")</td>
+                            <td class="p-4 font-bold text-gray-900">@Talayar.Money(inv.Total)</td>
+                            <td class="p-4 text-green-600">@Talayar.Money(inv.Pcash)</td>
+                            <td class="p-4 @(inv.Debt > 0 ? "text-red-600 font-bold" : "text-gray-400")">@(inv.Debt != 0 ? Talayar.Money(inv.Debt) : "تسویه")</td>
                             <td class="p-4">
-                                <a href="print/invoice/@inv.Id" target="_blank" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1.5 rounded-xl font-bold text-xs inline-flex items-center transition">
-                                    🖨 چاپ فاکتور
-                                </a>
+                                <div class="flex gap-2">
+                                    <a href="/invoices/@inv.Id" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl font-bold text-xs transition">👁 مشاهده</a>
+                                    <a href="/print/invoice/@inv.Id" target="_blank" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1.5 rounded-xl font-bold text-xs transition">🖨 چاپ</a>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -57,9 +91,26 @@
 
 @code {
     private List<Invoice> invoices = new();
+    private string q = "";
 
     protected override void OnInitialized()
     {
-        invoices = Db.Invoices.OrderByDescending(i => i.Id).ToList();
+        Load();
+    }
+
+    private void Load()
+    {
+        var query = Db.Invoices.AsQueryable();
+        string sq = Talayar.En(q).Trim();
+        if (sq.Length > 0)
+        {
+            var list = query.ToList().Where(i =>
+                Talayar.En(i.Id.ToString() + " " + i.Cname).Contains(sq)).ToList();
+            invoices = list.OrderByDescending(i => i.Id).ToList();
+        }
+        else
+        {
+            invoices = query.OrderByDescending(i => i.Id).Take(300).ToList();
+        }
     }
 }

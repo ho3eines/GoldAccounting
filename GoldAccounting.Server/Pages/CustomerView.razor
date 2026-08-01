@@ -1,0 +1,268 @@
+@page "/customers/{id:int}"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject SmsService Sms
+@inject NavigationManager Nav
+
+<PageTitle>پرونده مشتری</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    @if (cust != null)
+    {
+        var s = Svc.CustomerSums(Id);
+        long rate = Svc.CurrentRate();
+        var assets = Db.AssetLedgers.Where(a => a.Scope == "customer" && a.Cid == Id)
+            .ToList().GroupBy(a => a.Asset)
+            .Select(g => new { asset = g.Key, qty = g.Sum(x => x.Qty) })
+            .Where(x => x.qty != 0).ToList();
+        var ledger = Db.CustomerTxs.Where(c => c.Cid == Id).OrderByDescending(c => c.Ts).ThenByDescending(c => c.Id).Take(200).ToList();
+
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">👤 پرونده مشتری</h2>
+                <p class="text-sm text-gray-500 mt-1">کد حساب @Talayar.Dig(cust.Code)@(cust.Grp.Length > 0 ? " • گروه " + cust.Grp : "")</p>
+            </div>
+            <a href="/customers" class="text-sm font-bold text-amber-700 hover:text-amber-800">← بازگشت</a>
+        </div>
+
+        @if (msg.Length > 0)
+        {
+            <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+        }
+        @if (err.Length > 0)
+        {
+            <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+        }
+
+        <!-- سربرگ -->
+        <div class="bg-gradient-to-br from-slate-900 to-amber-900 text-white p-6 rounded-2xl shadow-xl">
+            <h3 class="text-2xl font-bold text-amber-400">@cust.Name</h3>
+            <p class="text-amber-100/80 text-sm mt-2">
+                @if (cust.Phone.Length > 0) { <span>☎ @Talayar.Dig(cust.Phone)</span> }
+                @if (cust.Address.Length > 0) { <span> • 📍 @cust.Address</span> }
+                @if (cust.Note.Length > 0) { <span> • @cust.Note</span> }
+            </p>
+        </div>
+
+        <!-- مانده -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">مانده حساب</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-gray-500 text-xs">💰 مانده نقدی/مالی</p>
+                    <p class="font-bold mt-1 @(s.cash > 0 ? "text-amber-700" : s.cash < 0 ? "text-green-600" : "text-gray-500")">
+                        @(s.cash > 0 ? Talayar.Money(s.cash) + " تومان (" + Talayar.Money(s.cash * 10) + " ریال) بدهکار" : s.cash < 0 ? Talayar.Money(-s.cash) + " تومان (" + Talayar.Money(-s.cash * 10) + " ریال) بستانکار" : "تسویه")
+                    </p>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-gray-500 text-xs">⚖️ مانده طلایی (۱۸ معادل)</p>
+                    <p class="font-bold mt-1 @(s.gold > 0 ? "text-amber-700" : s.gold != 0 ? "text-green-600" : "text-gray-500")">
+                        @(s.gold == 0 ? "—" : Talayar.Gs(Math.Abs(s.gold)) + (s.gold > 0 ? " بدهکار" : " بستانکار"))
+                    </p>
+                </div>
+            </div>
+            @foreach (var a in assets)
+            {
+                <div class="flex justify-between text-sm bg-gray-50 rounded-xl p-3">
+                    <span class="text-gray-600">@AssetIcon(a.asset) @Svc.AssetName(a.asset)</span>
+                    <b class="@(a.qty > 0 ? "text-amber-700" : "text-green-600")">@Svc.FmtQty(a.asset, Math.Abs(a.qty)) @(a.qty > 0 ? "بدهکار" : "بستانکار")</b>
+                </div>
+            }
+            @if (!assets.Any())
+            {
+                <p class="text-xs text-gray-400">سکه/شمش/ارز/نقره/کارساخته‌ای نزد این مشتری ثبت نشده.</p>
+            }
+        </div>
+
+        <!-- عملیات -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button @onclick="OpenPayCash" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-3 rounded-xl font-bold text-sm">💰 دریافت وجه</button>
+            <button @onclick="OpenPayGold" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-3 rounded-xl font-bold text-sm">⚖️ دریافت طلا</button>
+            <a href="/docs/new?cid=@Id" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-3 rounded-xl font-bold text-sm text-center">📜 سند جدید</a>
+            <a href="/customers?edit=@Id" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold text-sm text-center">✎ ویرایش پرونده</a>
+        </div>
+
+        @if (cust.Phone.Length >= 10)
+        {
+            <div class="card-lux p-5">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">📲 پیامک</h3>
+                <p class="text-[11px] text-gray-400 mt-1">ارسال پیامک به @Talayar.Dig(cust.Phone) — در حالت تست، پیام فقط در «لاگ پیامک‌ها» ثبت می‌شود.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button @onclick="SendBalanceSms" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-bold text-xs">💰 ارسال مانده حساب</button>
+                    <button @onclick="SendBirthdaySms" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-xl font-bold text-xs">🎂 تبریک تولد</button>
+                    <button @onclick="SendAnniversarySms" class="bg-purple-100 hover:bg-purple-200 text-purple-800 px-4 py-2 rounded-xl font-bold text-xs">💍 تبریک سالگرد</button>
+                </div>
+                @if (smsMsg.Length > 0)
+                {
+                    <p class="text-xs font-bold mt-2 @(smsMsg.StartsWith("خطا") ? "text-red-600" : "text-green-700")">@smsMsg</p>
+                }
+            </div>
+        }
+        @if (cust.BirthdayJ.Length >= 10 || cust.AnniversaryJ.Length >= 10)
+        {
+            <div class="card-lux p-5 flex flex-wrap gap-4 text-sm">
+                @if (cust.BirthdayJ.Length >= 10)
+                {
+                    <span><span class="text-gray-500">🎂 تولد:</span> <b>@Talayar.Dig(cust.BirthdayJ)</b></span>
+                }
+                @if (cust.AnniversaryJ.Length >= 10)
+                {
+                    <span><span class="text-gray-500">💍 سالگرد:</span> <b>@Talayar.Dig(cust.AnniversaryJ)</b></span>
+                }
+            </div>
+        }
+
+        @if (payCashOpen)
+        {
+            <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+                <h3 class="font-bold text-gray-800">دریافت وجه از @cust.Name @(s.cash > 0 ? "(مانده بدهی: " + Talayar.Money(s.cash) + " تومان)" : "")</h3>
+                <input @bind="payCashAmt" placeholder="مبلغ به تومان" class="w-full border rounded-xl p-3 text-sm" />
+                <input @bind="payDescr" placeholder="شرح (اختیاری)" class="w-full border rounded-xl p-3 text-sm" />
+                <div class="flex gap-2">
+                    <button @onclick="DoPayCash" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ثبت دریافت</button>
+                    <button @onclick="() => payCashOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+                </div>
+            </div>
+        }
+
+        @if (payGoldOpen)
+        {
+            <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+                <h3 class="font-bold text-gray-800">دریافت طلا از @cust.Name</h3>
+                <p class="text-xs text-gray-500">طلا به موجودی آبشده اضافه و از بدهی طلایی/نقدی مشتری کم می‌شود.</p>
+                <input @bind="payGoldW" placeholder="وزن (گرم)" class="w-full border rounded-xl p-3 text-sm" />
+                <div class="flex gap-1">
+                    @for (int i = 0; i < Talayar.KARAT_LABELS.Length; i++)
+                    {
+                        var idx = i;
+                        <button @onclick="() => payGoldKarat = Talayar.KARATS[idx]" class="flex-1 py-2 rounded-lg text-xs font-bold transition @(payGoldKarat == Talayar.KARATS[idx] ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600")">@Talayar.KARAT_LABELS[idx]</button>
+                    }
+                </div>
+                <input @bind="payDescr" placeholder="شرح (اختیاری)" class="w-full border rounded-xl p-3 text-sm" />
+                <div class="flex gap-2">
+                    <button @onclick="DoPayGold" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ثبت دریافت</button>
+                    <button @onclick="() => payGoldOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+                </div>
+            </div>
+        }
+
+        <!-- گردش حساب -->
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <div class="px-6 py-4 border-b bg-gray-50"><h3 class="font-bold text-gray-800">گردش حساب</h3></div>
+            <div class="divide-y">
+                @foreach (var tx in ledger)
+                {
+                    <div class="p-4">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 text-xs">@Talayar.Dig(tx.DateJ)</span>
+                            <div class="flex gap-3">
+                                @if (tx.Cash != 0)
+                                {
+                                    <b class="@(tx.Cash > 0 ? "text-amber-700" : "text-green-600")">@(tx.Cash > 0 ? "+" : "")@Talayar.Money(tx.Cash)</b>
+                                }
+                                @if (tx.Goldmw != 0)
+                                {
+                                    <b class="@(tx.Goldmw > 0 ? "text-amber-700" : "text-green-600")">@(tx.Goldmw > 0 ? "+" : "")@Talayar.Mw(tx.Goldmw) گرم</b>
+                                }
+                            </div>
+                        </div>
+                        @if (tx.Descr.Length > 0)
+                        {
+                            <p class="text-xs text-gray-500 mt-1">@tx.Descr</p>
+                        }
+                    </div>
+                }
+                @if (!ledger.Any())
+                {
+                    <p class="p-8 text-center text-gray-400 text-sm">تراکنشی ثبت نشده است.</p>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white p-12 text-center rounded-2xl shadow-sm border">
+            <p class="text-gray-500 font-bold">مشتری یافت نشد.</p>
+            <a href="/customers" class="inline-block mt-4 text-amber-700 font-bold text-sm">← بازگشت به مشتریان</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Customer? cust;
+    private string msg = "", err = "";
+
+    private bool payCashOpen, payGoldOpen;
+    private string payCashAmt = "", payGoldW = "", payDescr = "";
+    private int payGoldKarat = 750;
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        cust = Db.Customers.FirstOrDefault(c => c.Id == Id);
+    }
+
+    private string smsMsg = "";
+
+    private async Task SendBalanceSms()
+    {
+        var bal = Svc.CustomerSums(Id);
+        var r = await Sms.SendBalanceAsync(cust!, bal.cash, bal.gold);
+        smsMsg = r == "sent" ? "پیامک ارسال شد ✓" : r == "logged" ? "در حالت تست ثبت شد (SMS غیرفعال)" : "خطا: " + r;
+    }
+
+    private async Task SendBirthdaySms()
+    {
+        var r = await Sms.SendBirthdayAsync(cust!);
+        smsMsg = r == "sent" ? "پیامک ارسال شد ✓" : r == "logged" ? "در حالت تست ثبت شد (SMS غیرفعال)" : "خطا: " + r;
+    }
+
+    private async Task SendAnniversarySms()
+    {
+        var r = await Sms.SendAnniversaryAsync(cust!);
+        smsMsg = r == "sent" ? "پیامک ارسال شد ✓" : r == "logged" ? "در حالت تست ثبت شد (SMS غیرفعال)" : "خطا: " + r;
+    }
+
+    private void OpenPayCash() { payCashOpen = true; payGoldOpen = false; payCashAmt = ""; payDescr = ""; }
+    private void OpenPayGold() { payGoldOpen = true; payCashOpen = false; payGoldW = ""; payDescr = ""; }
+
+    private void DoPayCash()
+    {
+        err = "";
+        long amt = Talayar.ParseMoney(payCashAmt);
+        if (amt <= 0) { err = "مبلغ نامعتبر"; return; }
+        string desc = payDescr.Trim();
+        if (desc.Length == 0) desc = "دریافت وجه از " + cust!.Name;
+        Svc.ReceiveCash(Id, amt, desc);
+        msg = "ثبت شد ✓";
+        payCashOpen = false;
+    }
+
+    private void DoPayGold()
+    {
+        err = "";
+        long w = Talayar.ParseMw(payGoldW);
+        if (w <= 0) { err = "وزن نامعتبر"; return; }
+        string desc = payDescr.Trim();
+        if (desc.Length == 0) desc = "دریافت " + Talayar.Mw(w) + " گرم طلای " + Talayar.KaratName(payGoldKarat) + " از " + cust!.Name;
+        Svc.ReceiveGold(Id, w, payGoldKarat, desc);
+        msg = "ثبت شد ✓";
+        payGoldOpen = false;
+    }
+
+    static string AssetIcon(string asset)
+    {
+        if (asset.StartsWith("coin")) return "🪙";
+        if (asset.StartsWith("bull")) return "🧱";
+        if (asset.StartsWith("cur")) return "💵";
+        if (asset.StartsWith("sil")) return "🥈";
+        if (asset.StartsWith("work")) return "💍";
+        return "▪";
+    }
+}

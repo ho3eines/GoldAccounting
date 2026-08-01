@@ -1,0 +1,169 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace GoldAccounting.Server.Data
+{
+    // ---------- تنظیمات (settings) ----------
+    public class Setting
+    {
+        [Key]
+        public string K { get; set; } = "";
+        public string V { get; set; } = "";
+    }
+
+    // ---------- نرخ روز طلا (rates) ----------
+    public class Rate
+    {
+        [Key]
+        public int Id { get; set; }
+        public long Ts { get; set; }
+        public string DateJ { get; set; } = "";
+        public long RateVal { get; set; }
+    }
+
+    // ---------- کدینگ‌ها (defs) ----------
+    public class Def
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Kind { get; set; } = "";
+        public string Name { get; set; } = "";
+        public long X1 { get; set; }
+        public long X2 { get; set; }
+        public string X3 { get; set; } = "";
+        public long Cts { get; set; }
+    }
+
+    // ---------- سند مرکزی (docs + doc_rows) ----------
+    public class Doc
+    {
+        [Key]
+        public int Id { get; set; }
+        public long Ts { get; set; }
+        public string DateJ { get; set; } = "";
+        public string Descr { get; set; } = "";
+        public long UpdTs { get; set; }
+        public int BranchId { get; set; }
+        public List<DocRow> Rows { get; set; } = new();
+    }
+
+    public class DocRow
+    {
+        [Key]
+        public int Id { get; set; }
+        public int DocId { get; set; }
+        public int Seq { get; set; }
+        public string Txt { get; set; } = "";
+    }
+
+    // ---------- گردش حساب مشتری (customer_tx) ----------
+    public class CustomerTx
+    {
+        [Key]
+        public int Id { get; set; }
+        public int Cid { get; set; }
+        public long Ts { get; set; }
+        public string DateJ { get; set; } = "";
+        public long Cash { get; set; }
+        public long Goldmw { get; set; }
+        public string Descr { get; set; } = "";
+        public long Iid { get; set; }
+    }
+
+    // ---------- اتیکت (etiket) ----------
+    public class Etiket
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public long Wmw { get; set; }
+        public int ItemId { get; set; }
+        public string Photo { get; set; } = "";
+        public string Mezane { get; set; } = "";
+        public string Rfid { get; set; } = "";
+        public long UpdatedTs { get; set; }
+        public long Cts { get; set; }
+        public int BranchId { get; set; }
+        public string Status { get; set; } = "stock"; // stock | sold | out
+    }
+}
+
+namespace GoldAccounting.Server.Data
+{
+    // ---------- جدول ثبت اسکریپت‌های TSQL (DB-First Resource Runner) ----------
+    public class ResourceLog
+    {
+        [Key]
+        public int Id { get; set; }
+        public string FileName { get; set; } = "";
+        public bool Success { get; set; }
+        public DateTime ExecuteTime { get; set; }
+        public int ExecuteMs { get; set; }
+        public string? ErrorText { get; set; }
+    }
+}
+
+namespace GoldAccounting.Server.Data
+{
+    // ---------- درخواست خرید از فروشگاه آنلاین ----------
+    public class ShopRequest
+    {
+        [Key]
+        public int Id { get; set; }
+        public int ItemId { get; set; }
+        public string ItemName { get; set; } = "";
+        public string CustomerName { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public int Qty { get; set; } = 1;
+        public string Note { get; set; } = "";
+        public string Status { get; set; } = "new"; // new / contacted / done / cancelled
+        public long Cts { get; set; }
+        public string DateJ { get; set; } = "";
+    }
+}
+
+namespace GoldAccounting.Server.Data
+{
+    // ---------- شعبه‌ها ----------
+    public class Branch
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+        public long Cts { get; set; }
+    }
+
+    // ---------- رویدادهای سیستم (لاگ) ----------
+    public class EventLog
+    {
+        [Key]
+        public int Id { get; set; }
+        public long Ts { get; set; }
+        public string DateJ { get; set; } = "";
+        public string Actor { get; set; } = "";
+        public string Action { get; set; } = "";
+        public string TargetType { get; set; } = "";
+        public int TargetId { get; set; }
+        public string Details { get; set; } = "";
+        public int BranchId { get; set; }
+    }
+
+    // ---------- لاگ پیامک‌ها ----------
+    public class SmsLog
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Phone { get; set; } = "";
+        public string Kind { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string Status { get; set; } = "pending";
+        public string Error { get; set; } = "";
+        public long Ts { get; set; }
+        public string DateJ { get; set; } = "";
+    }
+}

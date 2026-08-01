@@ -1,0 +1,165 @@
+@page "/branches"
+@inject AppDbContext Db
+
+<PageTitle>شعب</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🏢 تعریف شعب</h2>
+            <p class="text-sm text-gray-500 mt-1">شعب مختلف فروشگاه را تعریف کنید — اسناد، فاکتورها، اتیکت‌ها و مشتریان می‌توانند به شعبه متصل شوند و گزارش‌ها به تفکیک شعبه دریافت می‌شوند.</p>
+        </div>
+        <button @onclick="OpenForm" class="btn-gold text-sm">＋ شعبه جدید</button>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    @if (formOpen)
+    {
+        <div class="card-lux p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">@(editingId == 0 ? "شعبه جدید" : "ویرایش شعبه")</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">نام شعبه *</label>
+                    <input @bind="fName" class="w-full border rounded-xl p-3 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">کد شعبه (یکتا)</label>
+                    <input @bind="fCode" class="w-full border rounded-xl p-3 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">تلفن</label>
+                    <input @bind="fPhone" class="w-full border rounded-xl p-3 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">آدرس</label>
+                    <input @bind="fAddr" class="w-full border rounded-xl p-3 text-sm" />
+                </div>
+            </div>
+            <label class="flex items-center gap-2 text-sm font-bold text-gray-700 bg-gray-50 rounded-xl p-3 cursor-pointer">
+                <input type="checkbox" @bind="fActive" class="w-4 h-4 accent-amber-600" />
+                شعبه فعال
+            </label>
+            <div class="flex gap-2">
+                <button @onclick="Save" class="btn-gold text-sm">@(editingId == 0 ? "ثبت شعبه" : "ذخیره تغییرات")</button>
+                <button @onclick="() => formOpen = false" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="divide-y">
+            @foreach (var b in branches)
+            {
+                <div class="p-5 flex items-center justify-between gap-3 hover:bg-gray-50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 flex items-center justify-center font-black shadow">🏢</div>
+                        <div>
+                            <p class="font-bold text-gray-800">@b.Name @(b.IsActive ? "" : "— غیرفعال")</p>
+                            <p class="text-xs text-gray-500">
+                                کد @Talayar.Dig(b.Code)
+                                @if (b.Phone.Length > 0) { <span>• ☎ @Talayar.Dig(b.Phone)</span> }
+                                @if (b.Address.Length > 0) { <span>• 📍 @b.Address</span> }
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @onclick="() => { editingId = b.Id; OpenForm(); }" class="text-blue-600 hover:text-blue-800 text-xs font-bold">✎ ویرایش</button>
+                        <button @onclick="() => Delete(b.Id)" class="text-red-400 hover:text-red-600 text-xs font-bold">🗑</button>
+                    </div>
+                </div>
+            }
+            @if (!branches.Any())
+            {
+                <p class="p-10 text-center text-gray-400 text-sm">شعبه‌ای تعریف نشده — همهٔ داده‌ها روی شعبهٔ اصلی (۰) ثبت می‌شوند.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Branch> branches = new();
+    private bool formOpen;
+    private int editingId;
+    private string fName = "", fCode = "", fPhone = "", fAddr = "";
+    private bool fActive = true;
+    private string msg = "", err = "";
+
+    protected override void OnInitialized() { Load(); }
+
+    private void Load()
+    {
+        branches = Db.Branches.OrderBy(b => b.Code).ToList();
+    }
+
+    private void OpenForm()
+    {
+        msg = ""; err = "";
+        if (editingId == 0)
+        {
+            long next = (Db.Branches.Any() ? Db.Branches.Max(b => b.Id) : 0) + 1;
+            fName = ""; fCode = next.ToString(); fPhone = ""; fAddr = ""; fActive = true;
+        }
+        else
+        {
+            var b = Db.Branches.FirstOrDefault(x => x.Id == editingId);
+            if (b != null)
+            {
+                fName = b.Name; fCode = b.Code; fPhone = b.Phone; fAddr = b.Address; fActive = b.IsActive;
+            }
+        }
+        formOpen = true;
+    }
+
+    private void Save()
+    {
+        err = ""; msg = "";
+        if (fName.Trim().Length == 0) { err = "نام شعبه را بنویسید"; return; }
+        string code = Talayar.En(fCode).Trim();
+        if (code.Length == 0) code = (Db.Branches.Any() ? Db.Branches.Max(b => b.Id) : 0) + 1 + "";
+        if (Db.Branches.Any(b => b.Code == code && b.Id != editingId)) { err = "این کد شعبه قبلاً استفاده شده"; return; }
+
+        if (editingId == 0)
+        {
+            Db.Branches.Add(new Branch
+            {
+                Code = code,
+                Name = fName.Trim(),
+                Phone = Talayar.En(fPhone),
+                Address = fAddr.Trim(),
+                IsActive = fActive,
+                Cts = DateTimeOffset.Now.ToUnixTimeMilliseconds()
+            });
+        }
+        else
+        {
+            var b = Db.Branches.FirstOrDefault(x => x.Id == editingId);
+            if (b != null)
+            {
+                b.Code = code; b.Name = fName.Trim(); b.Phone = Talayar.En(fPhone);
+                b.Address = fAddr.Trim(); b.IsActive = fActive;
+            }
+        }
+        Db.SaveChanges();
+        msg = "ذخیره شد ✓";
+        formOpen = false;
+        Load();
+    }
+
+    private void Delete(int id)
+    {
+        bool used = Db.Invoices.Any(i => i.BranchId == id) || Db.Docs.Any(d => d.BranchId == id) || Db.Etikets.Any(e => e.BranchId == id);
+        if (used) { err = "این شعبه در اسناد/فاکتورها/اتیکت‌ها استفاده شده و قابل حذف نیست."; return; }
+        var b = Db.Branches.FirstOrDefault(x => x.Id == id);
+        if (b != null) { Db.Branches.Remove(b); Db.SaveChanges(); }
+        msg = "حذف شد ✓";
+        Load();
+    }
+}

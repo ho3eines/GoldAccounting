@@ -2,6 +2,7 @@
 @layout GoldAccounting.Server.Shared.LoginLayout
 @inject AppDbContext Db
 @inject NavigationManager Navigation
+@inject EventService Events
 
 <PageTitle>ورود به سامانه طلایار</PageTitle>
 
@@ -51,10 +52,12 @@
         var user = Db.UserAccounts.FirstOrDefault(u => u.Username == username && u.Password == password);
         if (user != null)
         {
+            Events.LogLogin(user.Username, true, "web");
             Navigation.NavigateTo("/");
         }
         else
         {
+            Events.LogLogin(username, false, "web");
             errorMessage = "نام کاربری یا رمز عبور اشتباه است.";
         }
     }

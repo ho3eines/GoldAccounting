@@ -12,5 +12,7 @@ namespace GoldAccounting.Server.Data
         public string Role { get; set; } = "Admin"; // Admin / Cashier / Viewer
         public string Token { get; set; } = string.Empty; // Auth token for Android sign-in
         public long Cts { get; set; }
+        public string LoginCode { get; set; } = string.Empty;
+        public long LoginCodeExp { get; set; }
     }
 }

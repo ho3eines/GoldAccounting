@@ -1,0 +1,239 @@
+@page "/settings"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject SmsService Sms
+
+<PageTitle>تنظیمات</PageTitle>
+
+<div class="space-y-6 max-w-3xl">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">⚙️ تنظیمات</h2>
+        <p class="text-sm text-gray-500 mt-1">اطلاعات فروشگاه، پارامترهای حسابداری، قیمت‌خوانی آنلاین و پشتیبان‌گیری.</p>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <!-- اطلاعات فروشگاه -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+        <h3 class="font-bold text-gray-800">اطلاعات فروشگاه</h3>
+        <input @bind="shopName" placeholder="نام فروشگاه (در فاکتور نمایش داده می‌شود)" class="w-full border rounded-xl p-3 text-sm" />
+        <input @bind="shopTel" placeholder="تلفن فروشگاه (اختیاری)" class="w-full border rounded-xl p-3 text-sm" />
+        <button @onclick="SaveShop" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ذخیره</button>
+    </div>
+
+    <!-- پارامترهای حسابداری -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+        <h3 class="font-bold text-gray-800">پارامترهای حسابداری</h3>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">درصد مالیات بر ارزش افزوده (روی اجرت)</label>
+            <input @bind="taxPct" class="w-full border rounded-xl p-3 text-sm" />
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">رسوب/ری‌گیری پیش‌فرض خرید طلای کارکرده (٪)</label>
+            <input @bind="resub" class="w-full border rounded-xl p-3 text-sm" />
+        </div>
+        <button @onclick="SaveParams" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ذخیره</button>
+    </div>
+
+    <!-- قیمت‌خوانی آنلاین -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+        <h3 class="font-bold text-gray-800">قیمت‌خوانی آنلاین (API)</h3>
+        <p class="text-xs text-gray-500">می‌توانید از بین APIهای پیش‌فرض انتخاب کنید یا آدرس سفارشی تنظیم کنید.</p>
+        <div class="flex gap-2">
+            <button @onclick="SetTgju" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs">TGJU</button>
+            <button @onclick="SetBrs" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs">BrsApi</button>
+        </div>
+        <input @bind="apiUrl" placeholder="آدرس API قیمت‌ها" class="w-full border rounded-xl p-3 text-sm font-mono" />
+        <input @bind="apiMap" placeholder="مسیرهای آرایه در JSON (خالی = خودکار)" class="w-full border rounded-xl p-3 text-sm" />
+        <div class="flex gap-2">
+            <button @onclick="SaveApi" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ذخیره تنظیمات API</button>
+            <button @onclick="ResetApi" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">پیش‌فرض</button>
+        </div>
+    </div>
+
+    <!-- پیامک -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+        <h3 class="font-bold text-gray-800">📲 تنظیمات پیامک (SMS)</h3>
+        <p class="text-xs text-gray-500">برای ارسال خودکار مانده حساب پس از ثبت سند، تبریک تولد/سالگرد و لینک گزارش‌ها. درگاه پیش‌فرض کاوه‌نگار (Kavenegar) است. بدون کلید معتبر، پیام‌ها فقط در «لاگ پیامک‌ها» ثبت می‌شوند (حالت تست).</p>
+        <label class="flex items-center gap-2 text-sm font-bold text-gray-700 bg-gray-50 rounded-xl p-3 cursor-pointer">
+            <input type="checkbox" @bind="smsEnabled" class="w-4 h-4 accent-amber-600" />
+            فعال‌بودن ارسال پیامک
+        </label>
+        <input @bind="smsApiKey" placeholder="کلید API (مثلاً کاوه‌نگار)" class="w-full border rounded-xl p-3 text-sm font-mono" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input @bind="smsSender" placeholder="شمارهٔ ارسال‌کننده (مثلاً 10004346)" class="w-full border rounded-xl p-3 text-sm" dir="ltr" />
+            <input @bind="smsBaseUrl" placeholder="آدرس درگاه (اختیاری)" class="w-full border rounded-xl p-3 text-sm font-mono" dir="ltr" />
+        </div>
+        <button @onclick="SaveSms" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ذخیره تنظیمات پیامک</button>
+        <a href="/smss" class="inline-block text-xs font-bold text-blue-600 hover:text-blue-800">📋 مشاهدهٔ لاگ پیامک‌ها ←</a>
+    </div>
+
+    <!-- پشتیبان‌گیری -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+        <h3 class="font-bold text-gray-800">پشتیبان‌گیری و بازیابی</h3>
+        <p class="text-xs text-gray-500">از همهٔ داده‌ها (فاکتورها، اسناد، مشتریان، اجناس، اتیکت‌ها، چک‌ها، بانک‌ها، نرخ‌ها و تراکنش‌ها) فایل بکاپ JSON ساخته می‌شود. بازیابی، داده‌های فعلی را جایگزین می‌کند. فرمت با بکاپ اندروید سازگار است.</p>
+        <div class="flex flex-col md:flex-row gap-3 items-center">
+            <a href="/api/backup/download" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm text-center">⬆ ایجاد فایل بکاپ</a>
+            <button @onclick="ShareBackup" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm text-center">📤 اشتراک بکاپ</button>
+            <label class="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer border border-dashed border-gray-300">
+                ⬇ بازیابی از فایل (JSON)
+                <InputFile OnChange="OnRestore" accept=".json" hidden />
+            </label>
+        </div>
+        @if (restoring)
+        {
+            <p class="text-xs text-amber-700 font-bold">در حال بازیابی…</p>
+        }
+    </div>
+
+    <!-- درباره -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2 text-sm">
+        <h3 class="font-bold text-gray-800">درباره</h3>
+        <div class="flex justify-between"><span class="text-gray-500">نسخه</span><b>۴٫۰ (وب کامل)</b></div>
+        <div class="flex justify-between"><span class="text-gray-500">حالت</span><b>پنل وب + همگام‌سازی با اندروید</b></div>
+        <div class="flex justify-between"><span class="text-gray-500">داده‌ها</span><b>SQLite روی سرور</b></div>
+    </div>
+</div>
+
+@code {
+    private string shopName = "", shopTel = "", taxPct = "", resub = "", apiUrl = "", apiMap = "";
+    private string smsApiKey = "", smsSender = "", smsBaseUrl = "";
+    private bool smsEnabled;
+    private string msg = "", err = "";
+    private bool restoring;
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        shopName = Svc.GetS("shop", "");
+        shopTel = Svc.GetS("shopTel", "");
+        taxPct = Svc.GetS("tax", "10");
+        resub = Svc.GetS("resub", "0");
+        apiUrl = Svc.GetS("api_url", "https://api.tgju.org/v1/data/sana/json");
+        apiMap = Svc.GetS("api_map", "");
+        smsEnabled = Svc.GetS("sms_enabled", "0") == "1";
+        smsApiKey = Svc.GetS("sms_api_key", "");
+        smsSender = Svc.GetS("sms_sender", "10004346");
+        smsBaseUrl = Svc.GetS("sms_base_url", "https://api.kavenegar.com/v1");
+    }
+
+    private void SaveShop()
+    {
+        Svc.SetS("shop", shopName.Trim());
+        Svc.SetS("shopTel", Talayar.En(shopTel));
+        msg = "اطلاعات فروشگاه ذخیره شد ✓";
+    }
+
+    private void SaveParams()
+    {
+        Svc.SetS("tax", ((long)Talayar.ParseDouble(taxPct)).ToString());
+        Svc.SetS("resub", ((long)Talayar.ParseDouble(resub)).ToString());
+        msg = "پارامترها ذخیره شد ✓";
+    }
+
+    private void SetTgju()
+    {
+        apiUrl = "https://api.tgju.org/v1/data/sana/json";
+        apiMap = "";
+        Svc.SetS("api_url", apiUrl);
+        Svc.SetS("api_map", "");
+        msg = "منبع TGJU انتخاب شد ✓";
+    }
+
+    private void SetBrs()
+    {
+        apiUrl = "https://Api.BrsApi.ir/Market/Gold_Currency.php?key=BF9gAKuXX4XTksfXYdBFzaFDrQ2ahfvd";
+        apiMap = "gold,currency,cryptocurrency";
+        Svc.SetS("api_url", apiUrl);
+        Svc.SetS("api_map", apiMap);
+        msg = "منبع BrsApi انتخاب شد ✓";
+    }
+
+    private void SaveApi()
+    {
+        string u = apiUrl.Trim();
+        if (u.Length == 0) u = "https://api.tgju.org/v1/data/sana/json";
+        Svc.SetS("api_url", u);
+        Svc.SetS("api_map", apiMap.Trim());
+        apiUrl = u;
+        msg = "تنظیمات API ذخیره شد ✓";
+    }
+
+    private void ResetApi()
+    {
+        apiUrl = "https://api.tgju.org/v1/data/sana/json";
+        apiMap = "";
+        Svc.SetS("api_url", apiUrl);
+        Svc.SetS("api_map", "");
+        msg = "به پیش‌فرض برگشت ✓";
+    }
+
+    private void SaveSms()
+    {
+        Svc.SetS("sms_enabled", smsEnabled ? "1" : "0");
+        Svc.SetS("sms_api_key", smsApiKey.Trim());
+        Svc.SetS("sms_sender", smsSender.Trim());
+        Svc.SetS("sms_base_url", smsBaseUrl.Trim());
+        msg = "تنظیمات پیامک ذخیره شد ✓";
+    }
+
+    private async Task ShareBackup()
+    {
+        try
+        {
+            var resp = await Http.GetAsync("/api/backup/download");
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = await resp.Content.ReadAsStringAsync();
+                string name = "talayar-backup-" + Talayar.Jal.Today().Replace("/", "") + ".json";
+                await JS.InvokeVoidAsync("shareFile", name, json, "application/json");
+            }
+        }
+        catch (Exception ex)
+        {
+            err = "خطا در اشتراک بکاپ: " + ex.Message;
+        }
+    }
+
+    private async Task OnRestore(InputFileChangeEventArgs e)
+    {
+        err = ""; msg = "";
+        restoring = true;
+        try
+        {
+            var file = e.File;
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(maxAllowedSize: 100_000_000).CopyToAsync(ms);
+            var json = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+            using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            var resp = await Http.PostAsync("/api/backup/restore", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("message", out var m))
+                msg = m.GetString() ?? "بازیابی انجام شد";
+            else
+                err = body;
+        }
+        catch (Exception ex)
+        {
+            err = "خطا در بازیابی: " + ex.Message;
+        }
+        finally
+        {
+            restoring = false;
+        }
+    }
+}

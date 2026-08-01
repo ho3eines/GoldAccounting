@@ -1,0 +1,163 @@
+@page "/rates"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>نرخ روز طلا</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🪙 نرخ روز طلا</h2>
+            <p class="text-sm text-gray-500 mt-1">ثبت نرخ روز گرم ۱۸ عیار، معادل‌ها، روند و تاریخچه — هماهنگ با نرم‌افزار اندروید.</p>
+        </div>
+        <div class="flex gap-2 items-center">
+            <input @bind="newRateInput" placeholder="نرخ جدید به تومان…" class="border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none w-56" />
+            <button @onclick="SaveRate" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">✏️ ثبت نرخ امروز</button>
+        </div>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- نرخ فعلی -->
+        <div class="bg-gradient-to-br from-slate-900 to-amber-900 text-white p-6 rounded-2xl shadow-xl">
+            <p class="text-amber-200 text-sm">نرخ فعلی (گرم طلای ۱۸ عیار)</p>
+            <p class="text-3xl font-bold mt-2 text-amber-400">@(rate > 0 ? Talayar.Money(rate) + " تومان" : "ثبت نشده")</p>
+            <p class="text-amber-100/70 text-xs mt-3">آخرین ثبت: @(lastDate.Length > 0 ? Talayar.Dig(lastDate) : "—")</p>
+            <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-white/10 rounded-xl p-3">
+                    <p class="text-amber-200/80">گرم ۲۴ عیار</p>
+                    <p class="font-bold mt-1">@(rate > 0 ? Talayar.Money(PriceFor(1000, rate)) + " ت" : "—")</p>
+                </div>
+                <div class="bg-white/10 rounded-xl p-3">
+                    <p class="text-amber-200/80">گرم ۲۲ عیار</p>
+                    <p class="font-bold mt-1">@(rate > 0 ? Talayar.Money(PriceFor(916, rate)) + " ت" : "—")</p>
+                </div>
+                <div class="bg-white/10 rounded-xl p-3">
+                    <p class="text-amber-200/80">گرم ۲۱ عیار</p>
+                    <p class="font-bold mt-1">@(rate > 0 ? Talayar.Money(PriceFor(875, rate)) + " ت" : "—")</p>
+                </div>
+                <div class="bg-white/10 rounded-xl p-3">
+                    <p class="text-amber-200/80">گرم ۱۴ عیار</p>
+                    <p class="font-bold mt-1">@(rate > 0 ? Talayar.Money(PriceFor(585, rate)) + " ت" : "—")</p>
+                </div>
+            </div>
+            @if (rate > 0)
+            {
+                <p class="text-xs text-amber-200 mt-3">مثقال ۱۷ عیار (۴٫۶۰۸ گرم): <span class="font-bold">@Talayar.Money((long)Math.Round(rate * 4.608 * 705 / 750.0)) تومان</span></p>
+            }
+        </div>
+
+        <!-- نمودار -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6 lg:col-span-2">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">📈 روند نرخ (۳۰ ثبت اخیر)</h3>
+            @if (chartVals.Count >= 2)
+            {
+                long mn = chartVals.Min(), mx = chartVals.Max();
+                if (mx == mn) { mx += 1; mn -= 1; }
+                double iw = 900, ih = 220, padT = 24;
+                <svg viewBox="0 0 920 260" class="w-full" style="max-height:260px">
+                    @for (int i = 0; i < chartVals.Count; i++)
+                    {
+                        double x = chartVals.Count == 1 ? 10 + iw / 2 : 10 + iw * i / (chartVals.Count - 1);
+                        double y = padT + ih * (1 - (double)(chartVals[i] - mn) / (mx - mn));
+                        if (i > 0)
+                        {
+                            double x0 = chartVals.Count == 1 ? 10 + iw / 2 : 10 + iw * (i - 1) / (chartVals.Count - 1);
+                            double y0 = padT + ih * (1 - (double)(chartVals[i - 1] - mn) / (mx - mn));
+                            <line x1="@(x0.ToString("F1"))" y1="@(y0.ToString("F1"))" x2="@(x.ToString("F1"))" y2="@(y.ToString("F1"))" stroke="#C99327" stroke-width="2.5" stroke-linecap="round" />
+                        }
+                        <circle cx="@(x.ToString("F1"))" cy="@(y.ToString("F1"))" r="3" fill="#F6D988" />
+                    }
+                    <text x="460" y="16" text-anchor="middle" fill="#9AA7B6" font-size="12">بالاترین: @Talayar.Money(mx)</text>
+                    <text x="460" y="252" text-anchor="middle" fill="#9AA7B6" font-size="12">پایین‌ترین: @Talayar.Money(mn)</text>
+                </svg>
+            }
+            else
+            {
+                <p class="text-gray-500 text-sm py-10 text-center">برای نمایش نمودار حداقل ۲ ثبت نیاز است.</p>
+            }
+        </div>
+    </div>
+
+    <!-- تاریخچه -->
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50">
+            <h3 class="font-bold text-gray-800">🗓 تاریخچهٔ نرخ (۵۰ ثبت اخیر)</h3>
+        </div>
+        <table class="w-full text-right border-collapse">
+            <thead>
+                <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                    <th class="p-4">تاریخ</th>
+                    <th class="p-4">نرخ (تومان)</th>
+                    <th class="p-4">عملیات</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y text-sm text-gray-700">
+                @foreach (var r in history)
+                {
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-4 font-semibold">@Talayar.Dig(r.DateJ)</td>
+                        <td class="p-4 font-bold text-amber-700">@Talayar.Money(r.RateVal)</td>
+                        <td class="p-4">
+                            <button @onclick="() => DeleteRate(r.Id)" class="text-red-500 hover:text-red-700 text-xs font-bold">🗑 حذف</button>
+                        </td>
+                    </tr>
+                }
+                @if (!history.Any())
+                {
+                    <tr><td colspan="3" class="p-8 text-center text-gray-500">هنوز نرخی ثبت نشده است.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private long rate;
+    private string lastDate = "";
+    private string msg = "";
+    private List<Rate> history = new();
+    private List<long> chartVals = new();
+
+    private string newRateInput = "";
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        rate = Svc.CurrentRate();
+        history = Db.Rates.OrderByDescending(r => r.Ts).ThenByDescending(r => r.Id).Take(50).ToList();
+        var last = Db.Rates.OrderByDescending(r => r.Ts).ThenByDescending(r => r.Id).FirstOrDefault();
+        lastDate = last?.DateJ ?? "";
+        var ch = Db.Rates.OrderByDescending(r => r.Ts).ThenByDescending(r => r.Id).Take(30).ToList();
+        ch.Reverse();
+        chartVals = ch.Select(c => c.RateVal).ToList();
+        newRateInput = rate > 0 ? rate.ToString() : "";
+    }
+
+    private void SaveRate()
+    {
+        long v = Talayar.ParseMoney(newRateInput);
+        if (v <= 0) { msg = "مبلغ نامعتبر است."; return; }
+        Db.Rates.Add(new Rate { Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(), DateJ = Talayar.Jal.Today(), RateVal = v });
+        Db.SaveChanges();
+        msg = "نرخ امروز ثبت شد ✓";
+        Load();
+    }
+
+    private void DeleteRate(int id)
+    {
+        var r = Db.Rates.FirstOrDefault(x => x.Id == id);
+        if (r != null) { Db.Rates.Remove(r); Db.SaveChanges(); }
+        Load();
+    }
+
+    static long PriceFor(int karat, long rate18) => (long)Math.Round(rate18 * karat / 750.0);
+}

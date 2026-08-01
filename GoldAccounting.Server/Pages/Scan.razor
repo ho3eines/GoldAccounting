@@ -1,0 +1,216 @@
+@page "/scan"
+@inject AppDbContext Db
+@inject IJSRuntime JS
+
+<PageTitle>اسکن بارکد (دوربین)</PageTitle>
+
+<div class="space-y-6 max-w-4xl mx-auto">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">📷 اسکن بارکد با دوربین موبایل</h2>
+        <p class="text-sm text-gray-500 mt-1">خواندن بارکد اتیکت‌ها به‌صورت تکی و چندتایی با دوربین (BarcodeDetector) — مجموع وزن بارکدها در «ته حساب» نمایش داده می‌شود. در مرورگرهای بدون دوربین، ورود دستی/چسباندن لیست کار می‌کند.</p>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- دوربین -->
+        <div class="card-lux p-5 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-gray-800">🎥 دوربین</h3>
+                <div class="flex gap-2">
+                    <button @onclick="StartCam" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-bold text-xs">شروع</button>
+                    <button @onclick="StopCam" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-xs">توقف</button>
+                </div>
+            </div>
+            <div class="relative bg-slate-900 rounded-2xl overflow-hidden aspect-video">
+                <video id="scan-video" data-scan class="w-full h-full object-cover" muted playsinline></video>
+                @if (!cameraOn)
+                {
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                        <p class="text-3xl mb-2">📷</p>
+                        <p class="text-xs">دوربین خاموش است — «شروع» را بزنید</p>
+                    </div>
+                }
+            </div>
+            <p class="text-[11px] text-gray-400">نشان دادن دوربین به بارکد — خواندن خودکار و افزودن به لیست.</p>
+
+            <!-- ورود دستی -->
+            <div class="flex gap-2">
+                <input @bind="manualCode" placeholder="کد بارکد دستی…" class="flex-1 border rounded-xl p-3 text-sm font-mono" />
+                <button @onclick="AddManual" class="btn-gold text-xs whitespace-nowrap">افزودن</button>
+            </div>
+            <textarea @bind="bulkCodes" placeholder="چسباندن چند کد (هر کد در یک خط)…" rows="3" class="w-full border rounded-xl p-3 text-xs font-mono"></textarea>
+            <button @onclick="AddBulk" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs">＋ افزودن چندتایی (چسباندن)</button>
+        </div>
+
+        <!-- لیست اسکن‌شده + ته حساب -->
+        <div class="card-lux p-5 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-gray-800">🧾 لیست اسکن‌شده (@Talayar.Dig(codes.Count))</h3>
+                <div class="flex gap-2">
+                    <button @onclick="ClearAll" class="text-red-500 hover:text-red-700 text-xs font-bold">پاک‌کردن</button>
+                    <button @onclick="DownloadList" class="text-blue-600 hover:text-blue-800 text-xs font-bold">⬇ دانلود</button>
+                    <button @onclick="ShareList" class="text-amber-700 hover:text-amber-800 text-xs font-bold">📤 اشتراک</button>
+                </div>
+            </div>
+
+            <div class="max-h-72 overflow-y-auto divide-y">
+                @foreach (var c in codes)
+                {
+                    var et = lookup.TryGetValue(c, out var e) ? e : null;
+                    <div class="py-2 flex justify-between items-center text-sm">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="font-mono font-bold text-amber-700 text-xs">@Talayar.Dig(c)</span>
+                            @if (et != null)
+                            {
+                                <span class="text-xs text-gray-600 truncate">@et.Name • <b>@Talayar.Gs(et.Wmw)</b></span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-gray-100 text-gray-500 text-[10px]">ناشناس</span>
+                            }
+                        </div>
+                        <button @onclick="() => RemoveCode(c)" class="text-red-400 hover:text-red-600 text-xs">✕</button>
+                    </div>
+                }
+                @if (!codes.Any())
+                {
+                    <p class="py-8 text-center text-gray-400 text-sm">هنوز بارکدی اسکن نشده است.</p>
+                }
+            </div>
+
+            <!-- ته حساب -->
+            <div class="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
+                <p class="text-xs text-amber-300 font-bold">⚖️ ته حساب</p>
+                <div class="flex justify-between text-sm"><span class="text-slate-300">تعداد بارکد</span><b>@Talayar.Dig(codes.Count)</b></div>
+                <div class="flex justify-between text-sm"><span class="text-slate-300">شناخته‌شده (اتیکت)</span><b>@Talayar.Dig(knownCount)</b></div>
+                <div class="flex justify-between text-sm"><span class="text-slate-300">مجموع وزن بارکدها</span><b class="text-amber-400">@Talayar.Gs(totalWeight)</b></div>
+                <div class="flex justify-between text-sm border-t border-slate-700 pt-2"><span class="text-slate-300">تعداد اقلام</span><b>@Talayar.Dig(knownCount)</b></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<string> codes = new();
+    private Dictionary<string, Etiket> lookup = new();
+    private string manualCode = "", bulkCodes = "", msg = "", err = "";
+    private bool cameraOn;
+    private DotNetObjectReference<Scan>? _ref;
+
+    private int knownCount => codes.Count(c => lookup.ContainsKey(c));
+    private long totalWeight => codes.Where(c => lookup.ContainsKey(c)).Sum(c => lookup[c].Wmw);
+
+    protected override void OnInitialized()
+    {
+        lookup = Db.Etikets.ToList().GroupBy(e => e.Code).ToDictionary(g => g.Key, g => g.First());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ref = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("scanInit", _ref);
+        }
+    }
+
+    private async Task StartCam()
+    {
+        err = "";
+        bool ok = await JS.InvokeAsync<bool>("scanStart", "scan-video");
+        cameraOn = ok;
+        if (!ok)
+            err = "دوربین در دسترس نیست یا مرورگر از BarcodeDetector پشتیبانی نمی‌کند — از ورود دستی استفاده کنید.";
+    }
+
+    private async Task StopCam()
+    {
+        await JS.InvokeVoidAsync("scanStop");
+        cameraOn = false;
+    }
+
+    // فراخوانی از JS هنگام خواندن بارکد
+    [JSInvokable]
+    public void OnScanned(string code)
+    {
+        code = (code ?? "").Trim();
+        if (code.Length == 0 || codes.Contains(code)) return;
+        codes.Add(code);
+        msg = "بارکد خوانده شد: " + code;
+        StateHasChanged();
+    }
+
+    private void AddManual()
+    {
+        err = "";
+        string c = Talayar.En(manualCode).Trim();
+        if (c.Length == 0) { err = "کد را وارد کنید"; return; }
+        if (!codes.Contains(c)) codes.Add(c);
+        manualCode = "";
+        msg = "افزوده شد: " + c;
+    }
+
+    private void AddBulk()
+    {
+        err = "";
+        int n = 0;
+        foreach (var line in bulkCodes.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string c = Talayar.En(line).Trim();
+            if (c.Length == 0 || codes.Contains(c)) continue;
+            codes.Add(c);
+            n++;
+        }
+        bulkCodes = "";
+        msg = n + " کد افزوده شد ✓";
+    }
+
+    private void RemoveCode(string c)
+    {
+        codes.Remove(c);
+    }
+
+    private void ClearAll()
+    {
+        codes.Clear();
+        msg = "لیست پاک شد";
+    }
+
+    private async Task DownloadList()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("لیست بارکدهای اسکن‌شده — طلایار " + Talayar.Jal.Today());
+        foreach (var c in codes)
+        {
+            var et = lookup.TryGetValue(c, out var e) ? e : null;
+            sb.AppendLine(c + (et != null ? " | " + et.Name + " | " + Talayar.Gs(et.Wmw) : " | (ناشناس)"));
+        }
+        sb.AppendLine("ته حساب: " + Talayar.Dig(codes.Count) + " عدد — وزن " + Talayar.Gs(totalWeight));
+        await JS.InvokeVoidAsync("downloadText", "barcodes-" + Talayar.Jal.Today().Replace("/", "") + ".txt", sb.ToString(), "text/plain");
+    }
+
+    private async Task ShareList()
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in codes)
+        {
+            var et = lookup.TryGetValue(c, out var e) ? e : null;
+            sb.AppendLine(c + (et != null ? " — " + et.Name + " (" + Talayar.Gs(et.Wmw) + ")" : ""));
+        }
+        sb.Append("ته حساب: " + Talayar.Dig(codes.Count) + " عدد — وزن " + Talayar.Gs(totalWeight));
+        await JS.InvokeVoidAsync("shareText", "لیست بارکد طلایار", sb.ToString());
+    }
+
+    public void Dispose()
+    {
+        _ref?.Dispose();
+    }
+}

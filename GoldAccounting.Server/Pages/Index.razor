@@ -1,5 +1,6 @@
 @page "/"
 @inject AppDbContext Db
+@inject TalayarService Svc
 
 <PageTitle>داشبورد مدیریت حرفه‌ای طلایار</PageTitle>
 
@@ -11,42 +12,106 @@
             <h2 class="text-2xl md:text-3xl font-bold">داشبورد مدیریت یکپارچه طلا، حسابداری و فروش</h2>
             <p class="text-amber-100 text-sm max-w-2xl">تمامی اطلاعات دستگاه‌های اندروید به‌صورت کاملاً امن با سرور همگام‌سازی شده‌اند و برنامه وب کاملاً ریسپانسیو آماده مدیریت و چاپ اسناد است.</p>
         </div>
-        <div class="mt-4 md:mt-0 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 text-center">
-            <p class="text-xs text-amber-200">وضعیت ارتباط سرور</p>
-            <p class="text-lg font-bold text-green-400 mt-1">🟢 آنلاین و فعال</p>
+        <div class="mt-4 md:mt-0 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 text-center min-w-[220px]">
+            <p class="text-xs text-amber-200">نرخ امروز طلا (گرم ۱۸ عیار)</p>
+            <p class="text-2xl font-bold text-amber-400 mt-1">@(rate > 0 ? Talayar.Money(rate) + " تومان" : "ثبت نشده")</p>
+            <p class="text-xs text-amber-200 mt-1">@Talayar.Jal.LongToday()</p>
         </div>
     </div>
 
     <!-- Stats Grid -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-            <div>
-                <p class="text-xs md:text-sm text-gray-500 font-medium">کل فاکتورها</p>
-                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@invoiceCount</h3>
-            </div>
-            <div class="bg-amber-50 p-3 rounded-xl text-amber-600 text-lg md:text-xl">🧾</div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">تراز صندوق</p>
+            <h3 class="text-lg md:text-2xl font-bold @(cashBal >= 0 ? "text-gray-800" : "text-red-600") mt-1">@Talayar.Money(cashBal)</h3>
+            <p class="text-[10px] text-gray-400">تومان</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-            <div>
-                <p class="text-xs md:text-sm text-gray-500 font-medium">مشتریان ثبت‌شده</p>
-                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@customerCount</h3>
-            </div>
-            <div class="bg-blue-50 p-3 rounded-xl text-blue-600 text-lg md:text-xl">👥</div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">طلای آب‌شده (۱۸ معادل)</p>
+            <h3 class="text-lg md:text-2xl font-bold text-gray-800 mt-1">@Talayar.Mw(gold.eq)</h3>
+            <p class="text-[10px] text-gray-400">گرم</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-            <div>
-                <p class="text-xs md:text-sm text-gray-500 font-medium">اسناد حسابداری اتوماتیک</p>
-                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@voucherCount</h3>
-            </div>
-            <div class="bg-green-50 p-3 rounded-xl text-green-600 text-lg md:text-xl">📑</div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">فروش امروز</p>
+            <h3 class="text-lg md:text-2xl font-bold text-amber-700 mt-1">@Talayar.Money(today[1])</h3>
+            <p class="text-[10px] text-gray-400">@Talayar.Dig(today[0]) فاکتور</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-            <div>
-                <p class="text-xs md:text-sm text-gray-500 font-medium">همگام‌سازی‌های موفق</p>
-                <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@syncCount</h3>
-            </div>
-            <div class="bg-purple-50 p-3 rounded-xl text-purple-600 text-lg md:text-xl">🔄</div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">طلب از مشتریان (نقدی)</p>
+            <h3 class="text-lg md:text-2xl font-bold @(debts.cash > 0 ? "text-amber-700" : "text-gray-800") mt-1">@Talayar.Money(debts.cash)</h3>
+            <p class="text-[10px] text-gray-400">@(debts.gold != 0 ? "طلایی: " + Talayar.Mw(debts.gold) + " گرم" : "تومان")</p>
         </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">کل فاکتورها</p>
+            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@Talayar.Dig(invoiceCount)</h3>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">مشتریان ثبت‌شده</p>
+            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@Talayar.Dig(customerCount)</h3>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">اسناد حسابداری اتوماتیک</p>
+            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@Talayar.Dig(voucherCount)</h3>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p class="text-xs md:text-sm text-gray-500 font-medium">همگام‌سازی‌های موفق</p>
+            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">@Talayar.Dig(syncCount)</h3>
+        </div>
+    </div>
+
+    <!-- دسترسی سریع -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <a href="docs/new" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">📜</p><p class="text-xs font-bold text-gray-700 mt-1">ثبت سند جدید</p>
+        </a>
+        <a href="invoices/new" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🧾</p><p class="text-xs font-bold text-gray-700 mt-1">فاکتور فروش جدید</p>
+        </a>
+        <a href="buy" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🛍️</p><p class="text-xs font-bold text-gray-700 mt-1">خرید طلای کارکرده</p>
+        </a>
+        <a href="rates" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🪙</p><p class="text-xs font-bold text-gray-700 mt-1">نرخ روز طلا</p>
+        </a>
+        <a href="prices" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🌐</p><p class="text-xs font-bold text-gray-700 mt-1">قیمت‌های بازار</p>
+        </a>
+        <a href="customers" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">👥</p><p class="text-xs font-bold text-gray-700 mt-1">حساب‌ها / مشتریان</p>
+        </a>
+        <a href="items" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">📦</p><p class="text-xs font-bold text-gray-700 mt-1">اجناس و انبار</p>
+        </a>
+        <a href="cash" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">💰</p><p class="text-xs font-bold text-gray-700 mt-1">صندوق</p>
+        </a>
+        <a href="gold" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">⚖️</p><p class="text-xs font-bold text-gray-700 mt-1">طلا و آب‌شده</p>
+        </a>
+        <a href="banks" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🏦</p><p class="text-xs font-bold text-gray-700 mt-1">بانک‌ها</p>
+        </a>
+        <a href="etikets" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🏷</p><p class="text-xs font-bold text-gray-700 mt-1">اتیکت‌ها</p>
+        </a>
+        <a href="assets" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">📊</p><p class="text-xs font-bold text-gray-700 mt-1">دارایی‌ها و تراز</p>
+        </a>
+        <a href="reports" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">📈</p><p class="text-xs font-bold text-gray-700 mt-1">گزارش‌ها</p>
+        </a>
+        <a href="docs" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🗂</p><p class="text-xs font-bold text-gray-700 mt-1">دفتر اسناد</p>
+        </a>
+        <a href="defs" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">🗄</p><p class="text-xs font-bold text-gray-700 mt-1">کدینگ‌ها</p>
+        </a>
+        <a href="settings" class="p-4 bg-white hover:bg-amber-50 rounded-2xl shadow-sm border text-center transition">
+            <p class="text-2xl">⚙️</p><p class="text-xs font-bold text-gray-700 mt-1">تنظیمات و بکاپ</p>
+        </a>
     </div>
 
     <!-- Quick API & Android Sync Settings Box -->
@@ -81,6 +146,10 @@
     private int customerCount;
     private int voucherCount;
     private int syncCount;
+    private long rate, cashBal;
+    private (long raw, long eq) gold;
+    private (long cash, long gold) debts;
+    private long[] today = new long[6];
     private string serverApiUrl = "http://localhost:5000";
 
     protected override void OnInitialized()
@@ -89,5 +158,10 @@
         customerCount = Db.Customers.Count();
         voucherCount = Db.AccountingVouchers.Count();
         syncCount = Db.SyncLogs.Count();
+        rate = Svc.CurrentRate();
+        cashBal = Svc.CashBalance();
+        gold = Svc.GoldBalance();
+        debts = Svc.CustomerDebts();
+        today = Svc.SalesStats(Talayar.Jal.Today());
     }
 }

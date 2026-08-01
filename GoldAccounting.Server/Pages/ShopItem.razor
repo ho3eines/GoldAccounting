@@ -1,0 +1,164 @@
+@page "/shop/{id:int}"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>@(item != null ? item.Name : "محصول") — فروشگاه طلایار</PageTitle>
+
+<div class="space-y-6 max-w-5xl mx-auto">
+    @if (item != null)
+    {
+        var rateInfo = Svc.ShopRateInfo();
+        var (gold, wage, tax, total) = Svc.ItemPrice(item, rateInfo.rate);
+
+        <div class="flex justify-between items-center">
+            <a href="/shop" class="inline-flex items-center gap-1 text-sm font-bold text-amber-700 hover:text-amber-800">→ بازگشت به فروشگاه</a>
+            <span class="badge @(item.Status == "stock" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")">@(item.Status == "stock" ? "✓ موجود در انبار" : "ناموجود")</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- تصویر -->
+            <div class="card-lux p-6 flex flex-col">
+                <div class="relative flex-1 min-h-[260px] rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-amber-950 flex items-center justify-center overflow-hidden">
+                    <span class="text-[100px] drop-shadow-2xl">🪙</span>
+                    <span class="absolute top-3 right-3 badge bg-black/40 text-amber-300 font-mono">کد کار: @Talayar.Dig(item.Code)</span>
+                    <span class="absolute bottom-3 left-3 badge bg-white/10 text-white">@Talayar.KaratName(item.Karat)</span>
+                </div>
+
+                <!-- مشخصات -->
+                <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
+                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-[10px] text-gray-400">وزن</p><b>@Talayar.Mw(item.Wmw) گرم</b></div>
+                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-[10px] text-gray-400">عیار</p><b>@Talayar.KaratName(item.Karat)</b></div>
+                    @if (item.StoneVal > 0)
+                    {
+                        <div class="bg-gray-50 rounded-xl p-3"><p class="text-[10px] text-gray-400">سنگ و مزین</p><b>@Talayar.Money(item.StoneVal) تومان</b></div>
+                    }
+                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-[10px] text-gray-400">اجرت</p><b>@(item.WType == 0 ? Talayar.Pct(item.WVal) : item.WType == 1 ? Talayar.Money(item.WVal) + " ت/گرم" : Talayar.Money(item.WVal) + " تومان")</b></div>
+                </div>
+                @if (!string.IsNullOrEmpty(item.Descr))
+                {
+                    <p class="mt-3 text-sm text-gray-600 bg-amber-50 rounded-xl p-3">📝 @item.Descr</p>
+                }
+            </div>
+
+            <!-- قیمت و درخواست -->
+            <div class="space-y-4">
+                <div class="card-lux p-6">
+                    <h1 class="text-xl font-black text-gray-800">@item.Name</h1>
+
+                    <!-- جدول قیمت با نرخ روز -->
+                    <div class="mt-4 space-y-2 text-sm">
+                        <div class="flex justify-between items-center bg-amber-50 rounded-xl px-4 py-2.5">
+                            <span class="text-amber-800 font-bold text-xs">نرخ مبنا (گرم ۱۸ عیار)</span>
+                            <span class="text-amber-800 font-black">@Talayar.Money(rateInfo.rate) تومان</span>
+                        </div>
+                        @if (total > 0)
+                        {
+                            <div class="flex justify-between text-gray-600"><span>طلای خام</span><b>@Talayar.Money(gold)</b></div>
+                            <div class="flex justify-between text-gray-600"><span>اجرت ساخت</span><b>@Talayar.Money(wage)</b></div>
+                            @if (item.StoneVal > 0)
+                            {
+                                <div class="flex justify-between text-gray-600"><span>سنگ و مزین</span><b>@Talayar.Money(item.StoneVal)</b></div>
+                            }
+                            @if (tax > 0)
+                            {
+                                <div class="flex justify-between text-gray-600"><span>مالیات ارزش افزوده</span><b>@Talayar.Money(tax)</b></div>
+                            }
+                            <div class="flex justify-between items-center border-t border-dashed pt-3 mt-1">
+                                <span class="font-bold text-gray-700">قیمت روز</span>
+                                <span class="text-amber-700 font-black text-xl">@Talayar.Money(total) تومان</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400 text-left">محاسبه‌شده با نرخ @Talayar.Dig(rateInfo.dateJ)</p>
+                        }
+                        else
+                        {
+                            <div class="bg-red-50 rounded-xl p-4 text-center">
+                                <p class="text-red-600 font-bold text-sm">نرخ روز ثبت نشده است</p>
+                                <p class="text-[11px] text-red-400 mt-1">برای نمایش قیمت، ابتدا از «نرخ روز طلا» نرخ امروز را ثبت کنید.</p>
+                                <a href="/rates" class="inline-block mt-2 btn-gold text-xs">🪙 ثبت نرخ امروز</a>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-4 flex gap-2">
+                        <a href="tel:02188880000" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold text-sm text-center transition">📞 تماس جهت خرید</a>
+                        <a href="/shop" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold text-sm text-center transition">ادامهٔ فروشگاه</a>
+                    </div>
+                </div>
+
+                <!-- فرم درخواست خرید -->
+                <div class="card-lux p-6">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2">📩 درخواست خرید / استعلام</h3>
+                    <p class="text-[11px] text-gray-400 mt-1">اطلاعات تماس را بگذارید تا همکاران ما برای نهایی‌کردن خرید با شما تماس بگیرند.</p>
+
+                    @if (saved)
+                    {
+                        <div class="mt-4 bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl text-sm font-bold text-center">
+                            ✓ درخواست شما با موفقیت ثبت شد. به‌زودی با شما تماس می‌گیریم.
+                        </div>
+                    }
+                    else
+                    {
+                        @if (err.Length > 0)
+                        {
+                            <div class="mt-3 bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-semibold">@err</div>
+                        }
+                        <div class="mt-4 space-y-3">
+                            <input @bind="reqName" placeholder="نام و نام خانوادگی *" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                            <input @bind="reqPhone" placeholder="شماره تماس *" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" dir="ltr" />
+                            <div class="flex gap-3">
+                                <input @bind="reqQty" type="number" min="1" placeholder="تعداد" class="w-28 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                <input @bind="reqNote" placeholder="توضیحات (اختیاری)" class="flex-1 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                            </div>
+                            <button @onclick="SendRequest" class="w-full btn-gold py-3 text-sm">ارسال درخواست خرید</button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card-lux p-12 text-center">
+            <p class="text-4xl mb-3">🪙</p>
+            <p class="text-gray-500 font-bold">محصول یافت نشد.</p>
+            <a href="/shop" class="inline-block mt-4 text-amber-700 font-bold text-sm">→ بازگشت به فروشگاه</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Item? item;
+    private string reqName = "", reqPhone = "", reqQty = "1", reqNote = "";
+    private string err = "";
+    private bool saved;
+
+    protected override void OnInitialized()
+    {
+        item = Db.Items.FirstOrDefault(i => i.Id == Id);
+    }
+
+    private void SendRequest()
+    {
+        err = "";
+        if (reqName.Trim().Length == 0) { err = "نام را وارد کنید"; return; }
+        if (reqPhone.Trim().Length < 6) { err = "شماره تماس معتبر وارد کنید"; return; }
+        if (!int.TryParse(reqQty, out int qty) || qty < 1) qty = 1;
+
+        Db.ShopRequests.Add(new ShopRequest
+        {
+            ItemId = item!.Id,
+            ItemName = item.Name,
+            CustomerName = reqName.Trim(),
+            Phone = Talayar.En(reqPhone).Trim(),
+            Qty = qty,
+            Note = reqNote.Trim(),
+            Status = "new",
+            Cts = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            DateJ = Talayar.Jal.Today()
+        });
+        Db.SaveChanges();
+        saved = true;
+    }
+}

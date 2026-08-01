@@ -1,0 +1,136 @@
+@page "/assets"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>دارایی‌ها و تراز</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">⚖️ دارایی‌ها و تراز</h2>
+        <p class="text-sm text-gray-500 mt-1">تراز صندوق و بانک‌ها، آب‌شده تکی بر اساس عیار، سکه/شمش/ارز/نقره/کارساخته و چک‌های باز.</p>
+    </div>
+
+    @{
+        long cashBal = Svc.CashBalance();
+        long banks = Svc.BanksTotal();
+        var gold = Svc.GoldBalance();
+        var debts = Svc.CustomerDebts();
+        long rate = Svc.CurrentRate();
+    }
+
+    <!-- مشتریان -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">👥 مانده حساب مشتریان</h3>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">طلب نقدی از مشتریان (بدهی آن‌ها)</span><b class="text-amber-700">@Talayar.MoneyT(debts.cash > 0 ? debts.cash : 0)</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بستانکاری نقدی</span><b class="@(debts.cash >= 0 ? "" : "text-green-600")">@Talayar.MoneyT(debts.cash)</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مانده طلایی کل (۱۸ معادل)</span><b class="@(debts.gold > 0 ? "text-amber-700" : "")">@(debts.gold != 0 ? Talayar.Gs(debts.gold) : "—")</b></div>
+    </div>
+
+    <!-- نقد و بانک -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">💰 نقدی و بانکی</h3>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">تراز صندوق</span><b class="@(cashBal >= 0 ? "text-green-600" : "text-red-500")">@Talayar.MoneyT(cashBal)</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مجموع موجودی بانک‌ها</span><b class="@(banks >= 0 ? "text-green-600" : "text-red-500")">@Talayar.MoneyT(banks)</b></div>
+        @foreach (var b in Db.Defs.Where(d => d.Kind == "bank").OrderBy(d => d.Id))
+        {
+            long bbal = Svc.BankBalance(b.Id);
+            <div class="flex justify-between text-sm"><span class="text-gray-500 mr-4">🏦 @b.Name</span><b class="@(bbal >= 0 ? "" : "text-red-500")">@Talayar.MoneyT(bbal)</b></div>
+        }
+    </div>
+
+    <!-- آبشده -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">⚖️ آب‌شده و متفرقه (طلا)</h3>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">موجودی خام</span><b>@Talayar.Gs(gold.raw)</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">معادل ۱۸ عیار</span><b class="text-amber-700">@Talayar.Gs(gold.eq)</b></div>
+        @if (rate > 0)
+        {
+            <div class="flex justify-between text-sm"><span class="text-gray-500">ارزش روز تقریبی</span><b>@Talayar.MoneyT((long)Math.Round(gold.eq * rate / 1000.0))</b></div>
+        }
+        <p class="text-xs text-gray-500 pt-1">تفکیک تکی بر اساس عیار:</p>
+        @foreach (var k in byKarat)
+        {
+            <div class="flex justify-between text-sm mr-4"><span>@Talayar.KaratName(k.karat) (@Talayar.Dig(k.n) قلم)</span><b>@Talayar.Gs(k.w) ≈ @Talayar.Gs(Talayar.Equiv750(k.w, k.karat)) (۱۸ معادل)</b></div>
+        }
+        @if (!byKarat.Any())
+        {
+            <p class="text-xs text-gray-400">گردشی ثبت نشده است.</p>
+        }
+    </div>
+
+    <!-- سکه / شمش / ارز / نقره -->
+    @AssetSec("🪙 سکه‌ها", "coin", "coin")
+    @AssetSec("🧱 شمش‌ها", "bullion", "bull")
+    @AssetSec("💵 ارزها", "curr", "cur")
+    @AssetSec("🥈 نقره", "silver", "sil")
+
+    <!-- کارساخته -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">💍 کارساخته</h3>
+        @{
+            var stock = Svc.ItemsStock();
+            double workMg = Svc.StockOf("work_mg");
+        }
+        <div class="flex justify-between text-sm"><span class="text-gray-500">اجناس انبار</span><b>@Talayar.Dig(stock.count) قلم • @Talayar.MwG(stock.wmw)</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">کارساختهٔ وزنی (دفتر دارایی)</span><b>@Talayar.Gs((long)Math.Round(workMg))</b></div>
+    </div>
+
+    <!-- چک‌های باز -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">📄 چک‌های باز</h3>
+        @foreach (var g in openChecks)
+        {
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">@(g.Kind == "recv" ? "چک‌های دریافتی باز" : "چک‌های پرداختنی باز")</span>
+                <b class="@(g.Kind == "recv" ? "text-green-600" : "text-red-500")">@Talayar.Dig(g.N) فقره • @Talayar.MoneyT(g.Sum)</b>
+            </div>
+        }
+        @if (!openChecks.Any())
+        {
+            <p class="text-xs text-gray-400">چک بازی وجود ندارد ✓</p>
+        }
+    </div>
+</div>
+
+@code {
+    private List<(int karat, long w, int n)> byKarat = new();
+    private List<(string Kind, long N, long Sum)> openChecks = new();
+
+    protected override void OnInitialized()
+    {
+        byKarat = Db.GoldTransactions.ToList()
+            .GroupBy(x => x.Karat)
+            .Select(x => (x.Key, x.Sum(t => t.Kind == "out" ? -t.Wmw : t.Wmw), x.Count()))
+            .Where(x => x.Item2 != 0)
+            .OrderByDescending(x => x.Key)
+            .ToList();
+        openChecks = Db.CheckTransactions.Where(c => c.Status == "open").ToList()
+            .GroupBy(c => c.Kind)
+            .Select(g => (g.Key, (long)g.Count(), g.Sum(c => c.Amount)))
+            .ToList();
+    }
+
+    private RenderFragment AssetSec(string title, string defKind, string prefix) => __builder =>
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+            <h3 class="font-bold text-gray-800">@title</h3>
+            @{
+                bool any = false;
+                foreach (var d in Db.Defs.Where(x => x.Kind == defKind).OrderBy(x => x.Id))
+                {
+                    double q = Svc.StockOf(prefix + "_d" + d.Id);
+                    if (q == 0) continue;
+                    any = true;
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500 mr-4">@d.Name</span>
+                        <b class="@(q >= 0 ? "" : "text-red-500")">@Svc.FmtQty(prefix + "_d" + d.Id, q)</b>
+                    </div>
+                }
+                if (!any)
+                {
+                    <p class="text-xs text-gray-400">موجودی ثبت نشده (از «ثبت سند» ورود/خرید ثبت کنید).</p>
+                }
+            }
+        </div>
+    };
+}

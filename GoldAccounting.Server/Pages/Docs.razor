@@ -1,0 +1,161 @@
+@page "/docs"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject EventService Events
+@inject IJSRuntime JS
+
+<PageTitle>دفتر اسناد</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🗂 دفتر اسناد</h2>
+            <p class="text-sm text-gray-500 mt-1">لیست اسناد بر اساس زمان ثبت/به‌روزرسانی، استعلام و حذف با برگشت کامل اثرات.</p>
+        </div>
+        <a href="/docs/new" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ ثبت سند جدید</a>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-sm border p-5 space-y-3">
+        <div class="flex flex-col md:flex-row gap-2">
+            <input @bind="q" @bind:event="oninput" placeholder="استعلام: شماره سند، تاریخ (۱۴۰۵/…)، بخشی از شرح یا نام مشتری…" class="flex-1 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            <select @bind="branchId" @bind:after="Load" class="border rounded-xl p-3 text-sm">
+                <option value="0">همهٔ شعب</option>
+                <option value="-1">شعبه اصلی</option>
+                @foreach (var b in Db.Branches.OrderBy(b => b.Code))
+                {
+                    <option value="@b.Id">@b.Name</option>
+                }
+            </select>
+            <button @onclick="DownloadReport" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap">⬇ گزارش آفلاین</button>
+        </div>
+        <div class="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+            @for (int i = 0; i < 2; i++)
+            {
+                var idx = i;
+                <button @onclick="() => sortMode = idx" class="px-4 py-2 rounded-lg text-xs font-bold transition @(sortMode == idx ? "bg-white shadow text-amber-700" : "text-gray-500")">@(idx == 0 ? "بر اساس زمان ثبت" : "بر اساس زمان به‌روزرسانی")</button>
+            }
+        </div>
+    </div>
+
+    @{
+        int openDoc = 0;
+        int.TryParse(DocQuery, out openDoc);
+    }
+
+    <div class="space-y-4">
+        @foreach (var d in docs)
+        {
+            var rows = Db.DocRows.Where(r => r.DocId == d.Id).OrderBy(r => r.Seq).ToList();
+            <div class="bg-white rounded-2xl shadow-sm border p-5 @(d.Id == openDoc ? "ring-2 ring-amber-400" : "")">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <span class="font-bold text-amber-700">سند @Talayar.Dig(d.Id)</span>
+                        <span class="text-xs text-gray-500">@Talayar.Dig(d.DateJ)</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @onclick="() => ConfirmDelete(d.Id)" class="text-red-500 hover:text-red-700 text-xs font-bold">🗑 حذف</button>
+                    </div>
+                </div>
+                <div class="mt-2 space-y-0.5">
+                    @foreach (var r in rows)
+                    {
+                        <p class="text-sm text-gray-700">▪ @r.Txt</p>
+                    }
+                </div>
+            </div>
+        }
+        @if (!docs.Any())
+        {
+            <div class="bg-white p-12 text-center rounded-2xl shadow-sm border">
+                <p class="text-gray-500">سندی یافت نشد. از «ثبت سند جدید» شروع کنید.</p>
+            </div>
+        }
+    </div>
+
+    @if (confirmId > 0)
+    {
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+                <h3 class="text-lg font-bold text-gray-800">حذف سند شماره @Talayar.Dig(confirmId)</h3>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                    با حذف سند، همهٔ اثرات آن (تراز صندوق، بانک، آب‌شده، حساب مشتری، سکه/ارز/شمش و چک) برگردانده می‌شود.
+                    این کار قابل بازگشت نیست.
+                </p>
+                <div class="flex gap-2">
+                    <button @onclick="DoDelete" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">حذف قطعی</button>
+                    <button @onclick="() => confirmId = 0" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Doc> docs = new();
+    private string q = "";
+    private int sortMode;
+    private int confirmId;
+    private int branchId;
+    private string msg = "";
+
+    [SupplyParameterFromQuery(Name = "doc")]
+    public string? DocQuery { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        var qry = Db.Docs.AsQueryable();
+        if (branchId == -1) qry = qry.Where(d => d.BranchId == 0);
+        else if (branchId > 0) qry = qry.Where(d => d.BranchId == branchId);
+        var all = qry.ToList();
+        string sq = Talayar.En(q).Trim();
+        if (sq.Length > 0)
+        {
+            all = all.Where(d =>
+            {
+                string rows = string.Join(" ", Db.DocRows.Where(r => r.DocId == d.Id).Select(r => r.Txt));
+                return Talayar.En(d.Id + " " + d.DateJ + " " + d.Descr + " " + rows).Contains(sq);
+            }).ToList();
+        }
+        docs = sortMode == 0
+            ? all.OrderByDescending(d => d.Ts).ThenByDescending(d => d.Id).Take(400).ToList()
+            : all.OrderByDescending(d => d.UpdTs).ThenByDescending(d => d.Id).Take(400).ToList();
+    }
+
+    private void ConfirmDelete(int id)
+    {
+        confirmId = id;
+    }
+
+    private void DoDelete()
+    {
+        var doc = Db.Docs.FirstOrDefault(d => d.Id == confirmId);
+        Svc.DeleteDoc(confirmId);
+        Events.LogDoc(confirmId, "delete", doc != null ? doc.Descr : "حذف سند " + confirmId, "admin", doc?.BranchId ?? 0);
+        msg = "سند حذف شد ✓";
+        confirmId = 0;
+        Load();
+    }
+
+    private async Task DownloadReport()
+    {
+        var rows = Db.DocRows.ToList();
+        string branchName = branchId switch
+        {
+            0 => "همهٔ شعب",
+            -1 => "شعبه اصلی",
+            _ => Db.Branches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "—"
+        };
+        var html = ReportHtml.DocsReport(docs, rows, branchName);
+        await JS.InvokeVoidAsync("downloadText", "talayar-docs-" + Talayar.Jal.Today().Replace("/", "") + ".html", html, "text/html");
+    }
+}

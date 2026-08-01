@@ -1,78 +1,234 @@
 @inherits LayoutComponentBase
+@inject AppDbContext Db
+@inject TalayarService Svc
 
-<div class="min-h-screen flex flex-col md:flex-row bg-gray-100">
-    <!-- Mobile Header -->
-    <div class="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
-        <div class="flex items-center space-x-2 space-x-reverse">
-            <span class="text-amber-400 font-bold text-lg">🪙 طلایار ابری</span>
+<div class="min-h-screen bg-gray-100">
+    <!-- ═══ Top Header (همه سایزها) ═══ -->
+    <header class="sticky top-0 z-40 bg-slate-900 text-white shadow-lg border-b border-slate-800">
+        <div class="flex items-center justify-between px-3 md:px-6 h-16">
+            <div class="flex items-center gap-2 md:gap-3">
+                <!-- دکمهٔ همبرگری -->
+                <button @onclick="OpenDrawer" aria-label="باز کردن منو" title="منو"
+                        class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition flex flex-col items-center justify-center gap-[5px]">
+                    <span class="w-5 h-[2.5px] bg-white rounded-full transition"></span>
+                    <span class="w-5 h-[2.5px] bg-amber-400 rounded-full transition"></span>
+                    <span class="w-5 h-[2.5px] bg-white rounded-full transition"></span>
+                </button>
+                <a href="/" class="flex items-center gap-2">
+                    <img src="/icons/icon-192.png" alt="طلایار" class="w-9 h-9 rounded-xl shadow-lg shadow-amber-500/20" />
+                    <span class="font-black text-lg text-amber-400 hidden sm:block">طلایار</span>
+                    <span class="text-[10px] text-slate-400 hidden md:block">حسابداری طلافروشی</span>
+                </a>
+            </div>
+
+            <div class="flex items-center gap-2 md:gap-3">
+                <!-- نرخ امروز -->
+                <a href="/rates" class="hidden sm:flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-xl px-3 py-1.5 text-xs transition" title="نرخ روز طلا">
+                    <span>🪙</span>
+                    <b class="text-amber-400">@(rate > 0 ? Talayar.Money(rate) : "—")</b>
+                    <span class="text-slate-400">تومان</span>
+                    @if (rateToday)
+                    {
+                        <span class="badge bg-green-500/20 text-green-300">امروز ✓</span>
+                    }
+                    else if (rate > 0)
+                    {
+                        <span class="badge bg-amber-500/20 text-amber-300">دیروز</span>
+                    }
+                </a>
+                <span class="hidden lg:inline-block text-xs text-slate-400" id="jalali-date"></span>
+
+                <!-- دکمهٔ راهنما -->
+                <a href="/guide" aria-label="راهنمای استفاده" title="راهنمای استفاده"
+                   class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg transition">📖</a>
+
+                <!-- دکمهٔ پروفایل (همبرگری دوم) -->
+                <button @onclick="OpenDrawer" aria-label="پروفایل کاربر" title="اطلاعات کاربر"
+                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 font-black flex items-center justify-center shadow-lg shadow-amber-500/30 hover:brightness-110 transition">
+                    @AvatarChar
+                </button>
+            </div>
         </div>
-        <button @onclick="ToggleSidebar" class="p-2 text-gray-300 hover:text-white focus:outline-none">
-            ☰
-        </button>
+    </header>
+
+    <!-- ═══ منوی همبرگری (Drawer سمت راست) ═══ -->
+    <div class="fixed inset-0 z-50 @(drawerOpen ? "" : "pointer-events-none")" aria-hidden="@(!drawerOpen)">
+        <!-- پس‌زمینهٔ تیره -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 @(drawerOpen ? "opacity-100" : "opacity-0")"
+             @onclick="CloseDrawer"></div>
+
+        <!-- دراور -->
+        <aside class="absolute inset-y-0 right-0 w-80 max-w-[88vw] bg-slate-900 text-white shadow-2xl flex flex-col transition-transform duration-300 ease-out @(drawerOpen ? "translate-x-0" : "translate-x-full")">
+            <!-- اطلاعات کاربر -->
+            <div class="p-5 bg-gradient-to-br from-slate-800 via-slate-900 to-amber-950/40 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 flex items-center justify-center text-xl font-black shadow-lg shadow-amber-500/30">@AvatarChar</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold truncate">@fullName</p>
+                        <p class="text-[11px] text-slate-400 truncate">@username — @roleName</p>
+                    </div>
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-400 shadow shadow-green-400/60" title="متصل"></span>
+                </div>
+
+                <!-- نرخ لحظه‌ای داخل منو -->
+                <div class="mt-4 grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-white/5 rounded-xl p-2.5">
+                        <p class="text-slate-400">نرخ روز طلا</p>
+                        <p class="font-bold text-amber-400 mt-0.5">@(rate > 0 ? Talayar.Money(rate) + " تومان" : "—")</p>
+                        <p class="text-[9px] text-slate-500 mt-0.5">@(rateDate.Length > 0 ? "آخرین: " + Talayar.Dig(rateDate) : "ثبت نشده")</p>
+                    </div>
+                    <div class="bg-white/5 rounded-xl p-2.5">
+                        <p class="text-slate-400">تراز صندوق</p>
+                        <p class="font-bold text-green-400 mt-0.5">@Talayar.Money(cashBal)</p>
+                        <p class="text-[9px] text-slate-500 mt-0.5">تومان</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- نوبار -->
+            <nav class="flex-1 overflow-y-auto p-3 space-y-0.5">
+                <NavLink class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition text-sm font-semibold" Match="NavLinkMatch.All" href="" @onclick="CloseDrawer">
+                    <span class="text-lg">📊</span> داشبورد مدیریت
+                </NavLink>
+
+                @foreach (var sec in Sections)
+                {
+                    <p class="px-3.5 pt-3 pb-1 text-[10px] font-bold text-slate-500">@sec.Title</p>
+                    @foreach (var link in sec.Links)
+                    {
+                        <NavLink href="@link.Href" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition text-sm font-semibold" @onclick="CloseDrawer">
+                            <span class="text-lg">@link.Icon</span> @link.Title
+                        </NavLink>
+                    }
+                }
+            </nav>
+
+            <!-- پایین منو -->
+            <div class="p-4 border-t border-slate-800 space-y-2">
+                <a href="/settings" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 transition text-sm font-semibold">
+                    <span class="text-lg">⚙️</span> تنظیمات و بکاپ
+                </a>
+                <a href="/login" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 transition text-sm font-semibold">
+                    <span class="text-lg">🚪</span> ورود / خروج
+                </a>
+                <p class="text-center text-[10px] text-slate-500 pt-1">SQL Server • DB-First • PWA</p>
+            </div>
+        </aside>
     </div>
 
-    <!-- Sidebar (Responsive Drawer) -->
-    <div class="@(sidebarOpen ? "block" : "hidden") md:block w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-lg z-50 fixed md:static inset-0">
-        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold text-amber-400">🪙 طلایار ابری و جامع</h1>
-                <p class="text-xs text-slate-400 mt-1">نسخه حرفه‌ای وب و موبایل</p>
-            </div>
-            <button @onclick="ToggleSidebar" class="md:hidden text-gray-400 hover:text-white text-xl">✕</button>
-        </div>
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" Match="NavLinkMatch.All" href="">
-                <span class="ml-3">📊</span> داشبورد مدیریت
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="invoices">
-                <span class="ml-3">🧾</span> فاکتورها و فروش
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="accounting">
-                <span class="ml-3">📑</span> اسناد حسابداری
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="checks">
-                <span class="ml-3">💳</span> مدیریت چک‌ها
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="cashgold">
-                <span class="ml-3">💰</span> صندوق و طلا
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="onlineshop">
-                <span class="ml-3">🛒</span> فروشگاه آنلاین
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="inventory">
-                <span class="ml-3">📦</span> انبار و کالا
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="syncmanager">
-                <span class="ml-3">🔄</span> همگام‌سازی اندروید
-            </NavLink>
-        </nav>
-        <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-            همگام‌سازی دوطرفه با اندروید ✓
-        </div>
-    </div>
+    <!-- ═══ محتوا ═══ -->
+    <main class="p-4 md:p-6 max-w-7xl mx-auto w-full">
+        @Body
+    </main>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0">
-        <header class="bg-white shadow-sm h-16 hidden md:flex items-center px-6 justify-between border-b">
-            <div class="flex items-center space-x-4 space-x-reverse">
-                <span class="text-sm font-semibold text-gray-700">سامانه مدیریت جامع طلا — هماهنگ با نرم‌افزار آفلاین اندروید</span>
-            </div>
-            <div class="flex items-center space-x-3 space-x-reverse">
-                <span class="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold">🟢 متصل و همگام</span>
-            </div>
-        </header>
-
-        <main class="flex-1 p-4 md:p-6 overflow-y-auto">
-            @Body
-        </main>
-    </div>
+    <!-- ═══ ناوبری پایین (موبایل) ═══ -->
+    <nav class="bottom-nav md:hidden">
+        <NavLink href="" Match="NavLinkMatch.All">
+            <span class="bn-ic">📊</span> داشبورد
+        </NavLink>
+        <NavLink href="invoices/new">
+            <span class="bn-ic">🧾</span> فاکتور جدید
+        </NavLink>
+        <NavLink href="docs/new">
+            <span class="bn-ic">📜</span> سند جدید
+        </NavLink>
+        <NavLink href="shop">
+            <span class="bn-ic">🛒</span> فروشگاه
+        </NavLink>
+        <NavLink href="customers">
+            <span class="bn-ic">👥</span> مشتریان
+        </NavLink>
+    </nav>
 </div>
 
 @code {
-    private bool sidebarOpen = false;
+    private bool drawerOpen;
+    private long rate, cashBal;
+    private bool rateToday;
+    private string rateDate = "";
+    private string fullName = "مدیر سیستم";
+    private string username = "admin";
+    private string roleName = "مدیر";
 
-    private void ToggleSidebar()
+    private string AvatarChar => username.Length > 0 ? username.Substring(0, 1).ToUpper() : "م";
+
+    record NavLinkItem(string Href, string Icon, string Title);
+    record NavSection(string Title, NavLinkItem[] Links);
+
+    private List<NavSection> Sections { get; } = new()
     {
-        sidebarOpen = !sidebarOpen;
+        new("عملیات اصلی", new[]
+        {
+            new NavLinkItem("/docs/new", "📜", "ثبت سند جدید"),
+            new NavLinkItem("/invoices/new", "🧾", "فاکتور فروش جدید"),
+            new NavLinkItem("/buy", "🛍️", "خرید طلای کارکرده"),
+            new NavLinkItem("/rates", "🪙", "نرخ روز طلا"),
+            new NavLinkItem("/prices", "🌐", "قیمت‌های بازار"),
+        }),
+        new("فروشگاه", new[]
+        {
+            new NavLinkItem("/shop", "🛒", "فروشگاه آنلاین"),
+            new NavLinkItem("/shop/requests", "📩", "درخواست‌های خرید"),
+            new NavLinkItem("/scan", "📷", "اسکن بارکد (دوربین)"),
+        }),
+        new("شعب و پیامک", new[]
+        {
+            new NavLinkItem("/branches", "🏢", "تعریف شعب"),
+            new NavLinkItem("/reports/etikets", "🏷", "گزارش اتیکت‌ها"),
+            new NavLinkItem("/smss", "📋", "لاگ پیامک‌ها"),
+            new NavLinkItem("/events", "🕹", "رویدادهای سیستم"),
+        }),
+        new("مدیریت", new[]
+        {
+            new NavLinkItem("/invoices", "🔖", "فاکتورها"),
+            new NavLinkItem("/docs", "🗂", "دفتر اسناد"),
+            new NavLinkItem("/customers", "👥", "حساب‌ها / مشتریان"),
+            new NavLinkItem("/items", "📦", "اجناس و انبار"),
+            new NavLinkItem("/cash", "💰", "صندوق"),
+            new NavLinkItem("/gold", "⚖️", "طلا و آب‌شده"),
+            new NavLinkItem("/banks", "🏦", "بانک‌ها"),
+            new NavLinkItem("/checks", "💳", "چک‌ها"),
+            new NavLinkItem("/etikets", "🏷", "اتیکت‌ها"),
+            new NavLinkItem("/defs", "🗄", "کدینگ‌ها"),
+        }),
+        new("راهنما", new[]
+        {
+            new NavLinkItem("/guide", "📖", "راهنمای استفاده (آموزش کامل)"),
+        }),
+        new("تحلیل و سیستم", new[]
+        {
+            new NavLinkItem("/assets", "⚖️", "دارایی‌ها و تراز"),
+            new NavLinkItem("/reports", "📊", "گزارش‌ها"),
+            new NavLinkItem("/accounting", "📑", "اسناد حسابداری"),
+            new NavLinkItem("/resources", "🗃", "اسکریپت‌های TSQL"),
+            new NavLinkItem("/syncmanager", "🔄", "همگام‌سازی اندروید"),
+            new NavLinkItem("/win-login", "🖥️", "ورود ویندوز با موبایل"),
+        }),
+    };
+
+    protected override void OnInitialized()
+    {
+        var info = Svc.ShopRateInfo();
+        rate = info.rate;
+        rateToday = info.today;
+        rateDate = info.dateJ;
+        cashBal = Svc.CashBalance();
+
+        var user = Db.UserAccounts.FirstOrDefault();
+        if (user != null)
+        {
+            username = user.Username;
+            fullName = string.IsNullOrEmpty(user.FullName) ? user.Username : user.FullName;
+            roleName = user.Role switch
+            {
+                "Admin" => "مدیر",
+                "Cashier" => "صندوق‌دار",
+                "Viewer" => "بیننده",
+                _ => user.Role
+            };
+        }
     }
+
+    private void OpenDrawer() => drawerOpen = true;
+    private void CloseDrawer() => drawerOpen = false;
 }

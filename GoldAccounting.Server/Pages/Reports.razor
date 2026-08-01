@@ -1,0 +1,227 @@
+@page "/reports"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject IJSRuntime JS
+
+<PageTitle>گزارش‌های مدیریتی</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">📊 گزارش‌های مدیریتی</h2>
+            <p class="text-sm text-gray-500 mt-1">فروش امروز/ماه شمسی، اجرت، مالیات، ارزش روز موجودی و بدهی‌ها — به تفکیک شعبه.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button @onclick="DownloadSummary" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-xs">⬇ دانلود گزارش (آفلاین)</button>
+            <button @onclick="ShareSummary" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2.5 rounded-xl font-bold text-xs">📤 اشتراک‌گذاری</button>
+        </div>
+    </div>
+
+    <!-- فیلتر شعبه -->
+    <div class="card-lux p-4 flex flex-col md:flex-row items-center gap-3">
+        <span class="text-xs font-bold text-gray-500">🏢 شعبه:</span>
+        <select @bind="branchId" @bind:after="Load" class="flex-1 border rounded-xl p-2.5 text-sm">
+            <option value="0">— همهٔ شعب —</option>
+            <option value="-1">شعبه اصلی</option>
+            @foreach (var b in Db.Branches.OrderBy(b => b.Code))
+            {
+                <option value="@b.Id">@b.Name</option>
+            }
+        </select>
+        <span class="text-[11px] text-gray-400">گزارش چندشعبه: «همهٔ شعب» را انتخاب کنید</span>
+    </div>
+
+    @{
+        string branchName = branchId switch
+        {
+            0 => "همهٔ شعب",
+            -1 => "شعبه اصلی",
+            _ => Db.Branches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "—"
+        };
+        var invs = Db.Invoices.AsQueryable();
+        if (branchId == -1) invs = invs.Where(i => i.BranchId == 0);
+        else if (branchId > 0) invs = invs.Where(i => i.BranchId == branchId);
+        var invList = invs.ToList();
+
+        long rate = Svc.CurrentRate();
+        string today = Talayar.Jal.Today();
+        string month = Talayar.Jal.ThisMonth();
+        long[] todayStats = SalesOf(invList, today);
+        long[] monthStats = SalesOf(invList, month);
+        var stock = Svc.ItemsStock();
+        var gold = Svc.GoldBalance();
+        var sp = Svc.CustomerDebtSplit();
+        long bal = Svc.CashBalance();
+        long banks = Svc.BanksTotal();
+    }
+
+    <!-- فروش -->
+    <div class="card-lux p-6 space-y-2">
+        <div class="flex justify-between items-center">
+            <h3 class="font-bold text-gray-800">🧾 فروش — @branchName</h3>
+            <div class="flex gap-4 text-xs text-gray-500">
+                <span>امروز (@Talayar.Dig(today))</span>
+                <span>این ماه شمسی</span>
+            </div>
+        </div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">تعداد فاکتور</span><b>@Talayar.Dig(todayStats[0]) | @Talayar.Dig(monthStats[0])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مبلغ فروش</span><b class="text-amber-700">@Talayar.Money(todayStats[1]) | @Talayar.Money(monthStats[1])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">اجرت دریافتی</span><b class="text-green-600">@Talayar.Money(todayStats[2]) | @Talayar.Money(monthStats[2])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مالیات جمع‌آوری‌شده</span><b>@Talayar.Money(todayStats[3]) | @Talayar.Money(monthStats[3])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">نقد دریافت‌شده</span><b>@Talayar.Money(todayStats[4]) | @Talayar.Money(monthStats[4])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مانده به حساب مشتریان</span><b class="text-amber-700">@Talayar.Money(todayStats[5]) | @Talayar.Money(monthStats[5])</b></div>
+    </div>
+
+    <!-- موجودی -->
+    <div class="card-lux p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">📦 موجودی</h3>
+        @{
+            long stockDayVal = 0;
+            foreach (var it in Db.Items.Where(i => i.Status == "stock").ToList())
+            {
+                long gv = (long)Math.Round(Talayar.Equiv750(it.Wmw, it.Karat) * rate / 1000.0);
+                long wv = TalayarService.CalcWage(gv, it.Wmw, it.WType, it.WVal);
+                stockDayVal += gv + wv + it.StoneVal;
+            }
+        }
+        <div class="flex justify-between text-sm"><span class="text-gray-500">اجناس در انبار</span><b>@Talayar.Dig(stock.count) قلم • @Talayar.Mw(stock.wmw) گرم</b></div>
+        @if (rate > 0)
+        {
+            <div class="flex justify-between text-sm"><span class="text-gray-500">ارزش روز اجناس (با اجرت)</span><b class="text-amber-700">@Talayar.Money(stockDayVal) تومان</b></div>
+        }
+        <div class="flex justify-between text-sm"><span class="text-gray-500">طلای آب‌شده (۱۸ معادل)</span><b>@Talayar.Mw(gold.eq) گرم • خام @Talayar.Mw(gold.raw) گرم</b></div>
+        @if (rate > 0)
+        {
+            <div class="flex justify-between text-sm"><span class="text-gray-500">ارزش روز آب‌شده</span><b>@Talayar.Money((long)Math.Round(gold.eq * rate / 1000.0)) تومان</b></div>
+        }
+    </div>
+
+    <!-- نقد و حساب‌ها -->
+    <div class="card-lux p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">💰 نقدینگی و حساب‌ها</h3>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">تراز صندوق</span><b class="@(bal >= 0 ? "text-green-600" : "text-red-500")">@Talayar.Money(bal) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مجموع بانک‌ها</span><b>@Talayar.Money(banks) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بدهی نقدی مشتریان</span><b class="text-amber-700">@Talayar.Money(sp.debtC) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بستانکاری نقدی</span><b class="text-green-600">@Talayar.Money(sp.credC) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بدهی طلایی مشتریان</span><b class="text-amber-700">@(sp.debtG != 0 ? Talayar.Mw(sp.debtG) + " گرم" : "—")</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بستانکاری طلایی</span><b>@(sp.credG != 0 ? Talayar.Mw(sp.credG) + " گرم" : "—")</b></div>
+    </div>
+
+    <!-- گردش کلی -->
+    <div class="card-lux p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">📈 گردش از ابتدا — @branchName</h3>
+        @{
+            long invN = invList.Count, invSum = invList.Sum(i => i.Total), invWage = invList.Sum(i => i.Wage);
+            long goldIn = Db.GoldTransactions.Where(g => g.Kind == "in").Sum(g => (long?)g.Wmw) ?? 0;
+        }
+        <div class="flex justify-between text-sm"><span class="text-gray-500">کل فاکتورها</span><b>@Talayar.Dig(invN) فاکتور • @Talayar.Money(invSum) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">کل اجرت‌های دریافتی</span><b class="text-green-600">@Talayar.Money(invWage) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">کل طلای خریداری/دریافت‌شده</span><b>@Talayar.Mw(goldIn) گرم</b></div>
+    </div>
+
+    <!-- پیامک لینک گزارش -->
+    <div class="card-lux p-6">
+        <h3 class="font-bold text-gray-800 flex items-center gap-2">📲 ارسال لینک گزارش با پیامک</h3>
+        <p class="text-[11px] text-gray-400 mt-1">لینک این گزارش به شمارهٔ مشتری انتخاب‌شده پیامک می‌شود (نیازمند فعال‌بودن تنظیمات پیامک).</p>
+        <div class="mt-3 flex flex-col md:flex-row gap-2">
+            <select @bind="smsCustomerId" class="flex-1 border rounded-xl p-2.5 text-sm">
+                <option value="0">— انتخاب مشتری —</option>
+                @foreach (var c in Db.Customers.Where(c => c.Phone.Length >= 10).OrderBy(c => c.Code))
+                {
+                    <option value="@c.Id">@c.Name (@Talayar.Dig(c.Phone))</option>
+                }
+            </select>
+            <button @onclick="SendReportLink" class="btn-gold text-sm whitespace-nowrap">📲 ارسال لینک</button>
+        </div>
+        @if (smsMsg.Length > 0)
+        {
+            <p class="text-xs text-green-700 font-bold mt-2">@smsMsg</p>
+        }
+    </div>
+</div>
+
+@code {
+    private int branchId;
+    private int smsCustomerId;
+    private string smsMsg = "";
+    private string baseUrl => $"{NavigationManager.ToAbsoluteUri("/").GetLeftPart(UriPartial.Authority)}";
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = null!;
+    [Inject] private SmsService Sms { get; set; } = null!;
+
+    private string BranchName => branchId switch
+    {
+        0 => "همهٔ شعب",
+        -1 => "شعبه اصلی",
+        _ => Db.Branches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "—"
+    };
+
+    private static long[] SalesOf(List<Data.Invoice> list, string prefix)
+    {
+        var l = list.Where(i => i.DateJ.StartsWith(prefix)).ToList();
+        return new long[] { l.Count, l.Sum(i => i.Total), l.Sum(i => i.Wage), l.Sum(i => i.Tax), l.Sum(i => i.Pcash), l.Sum(i => i.Debt) };
+    }
+
+    private void Load()
+    {
+        var q = Db.Invoices.AsQueryable();
+        if (branchId == -1) q = q.Where(i => i.BranchId == 0);
+        else if (branchId > 0) q = q.Where(i => i.BranchId == branchId);
+        invListCache = q.ToList();
+        StateHasChanged();
+    }
+
+    private async Task SendReportLink()
+    {
+        smsMsg = "";
+        if (smsCustomerId <= 0) return;
+        var c = Db.Customers.FirstOrDefault(x => x.Id == smsCustomerId);
+        if (c == null) return;
+        string link = baseUrl + "/reports?branch=" + branchId;
+        var result = await Sms.SendReportLinkAsync(c, "گزارش مدیریتی", link);
+        smsMsg = result == "sent" ? "پیامک ارسال شد ✓" : result == "logged" ? "در حالت تست ثبت شد (SMS غیرفعال است)" : "خطا: " + result;
+    }
+
+    private async Task DownloadSummary()
+    {
+        var html = BuildSummaryHtml();
+        await JS.InvokeVoidAsync("downloadText", "talayar-report-" + Talayar.Jal.Today().Replace("/", "") + ".html", html, "text/html");
+    }
+
+    private async Task ShareSummary()
+    {
+        var text = BuildSummaryText();
+        await JS.InvokeVoidAsync("shareText", "گزارش مدیریتی طلایار", text);
+    }
+
+    private string BuildSummaryText()
+    {
+        string t = Talayar.Jal.Today(), m = Talayar.Jal.ThisMonth();
+        var td = SalesOf(invListCache, t);
+        var mm = SalesOf(invListCache, m);
+        return $"📊 گزارش مدیریتی ({BranchName})\n"
+             + $"فروش امروز: {Talayar.Money(td[1])} تومان ({Talayar.Dig(td[0])} فاکتور)\n"
+             + $"فروش ماه: {Talayar.Money(mm[1])} تومان\n"
+             + $"اجرت ماه: {Talayar.Money(mm[2])} • مالیات: {Talayar.Money(mm[3])}\n"
+             + $"— طلایار";
+    }
+
+    private List<Data.Invoice> invListCache = new();
+
+    private string BuildSummaryHtml()
+    {
+        string branchName2 = branchId switch { 0 => "همهٔ شعب", -1 => "شعبه اصلی", _ => Db.Branches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "—" };
+        var td = SalesOf(invListCache, Talayar.Jal.Today());
+        var mm = SalesOf(invListCache, Talayar.Jal.ThisMonth());
+        var body = $"<table><thead><tr><th>شاخص</th><th>امروز</th><th>این ماه</th></tr></thead><tbody>"
+            + $"<tr><td>تعداد فاکتور</td><td>{Talayar.Dig(td[0])}</td><td>{Talayar.Dig(mm[0])}</td></tr>"
+            + $"<tr><td>مبلغ فروش</td><td>{Talayar.Money(td[1])}</td><td>{Talayar.Money(mm[1])}</td></tr>"
+            + $"<tr><td>اجرت</td><td>{Talayar.Money(td[2])}</td><td>{Talayar.Money(mm[2])}</td></tr>"
+            + $"<tr><td>مالیات</td><td>{Talayar.Money(td[3])}</td><td>{Talayar.Money(mm[3])}</td></tr>"
+            + $"<tr><td>نقد دریافتی</td><td>{Talayar.Money(td[4])}</td><td>{Talayar.Money(mm[4])}</td></tr>"
+            + $"<tr><td>مانده مشتریان</td><td>{Talayar.Money(td[5])}</td><td>{Talayar.Money(mm[5])}</td></tr>"
+            + "</tbody></table>"
+            + $"<div class='sum'>شعبه: {branchName2} — تولیدشده توسط طلایار</div>";
+        return ReportHtml.Shell("گزارش مدیریتی", body, "تولیدشده توسط طلایار — قابل مشاهده آفلاین");
+    }
+}

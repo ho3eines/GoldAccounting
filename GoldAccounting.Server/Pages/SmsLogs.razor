@@ -1,0 +1,75 @@
+@page "/smss"
+@inject AppDbContext Db
+
+<PageTitle>لاگ پیامک‌ها</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">📋 لاگ پیامک‌ها</h2>
+        <p class="text-sm text-gray-500 mt-1">همهٔ پیامک‌های ارسالی (مانده حساب، تبریک تولد/سالگرد، لینک گزارش) — در حالت تست وضعیت «logged» ثبت می‌شود.</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="table-responsive">
+            <table class="w-full text-right border-collapse min-w-[700px]">
+                <thead>
+                    <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                        <th class="p-3">#</th>
+                        <th class="p-3">تاریخ</th>
+                        <th class="p-3">شماره</th>
+                        <th class="p-3">نوع</th>
+                        <th class="p-3">پیام</th>
+                        <th class="p-3">وضعیت</th>
+                        <th class="p-3">خطا</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y text-sm text-gray-700">
+                    @foreach (var l in logs)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 font-bold text-amber-600">@Talayar.Dig(l.Id)</td>
+                            <td class="p-3 text-xs whitespace-nowrap">@Talayar.Dig(l.DateJ)</td>
+                            <td class="p-3 font-mono text-xs" dir="ltr">@Talayar.Dig(l.Phone)</td>
+                            <td class="p-3"><span class="badge bg-blue-50 text-blue-700">@KindName(l.Kind)</span></td>
+                            <td class="p-3 text-xs text-gray-600 max-w-sm whitespace-pre-line">@l.Message</td>
+                            <td class="p-3">
+                                <span class="badge @(l.Status == "sent" ? "bg-green-100 text-green-700" : l.Status == "logged" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700")">@StatusName(l.Status)</span>
+                            </td>
+                            <td class="p-3 text-xs text-red-500 max-w-[160px] truncate" title="@l.Error">@(l.Error.Length > 0 ? l.Error : "—")</td>
+                        </tr>
+                    }
+                    @if (!logs.Any())
+                    {
+                        <tr><td colspan="7" class="p-10 text-center text-gray-400">پیامکی ثبت نشده است.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<SmsLog> logs = new();
+
+    protected override void OnInitialized()
+    {
+        logs = Db.SmsLogs.OrderByDescending(l => l.Id).Take(200).ToList();
+    }
+
+    static string KindName(string k) => k switch
+    {
+        "balance" => "مانده حساب",
+        "birthday" => "تبریک تولد",
+        "anniversary" => "تبریک سالگرد",
+        "report_link" => "لینک گزارش",
+        _ => k
+    };
+
+    static string StatusName(string s) => s switch
+    {
+        "sent" => "ارسال شد",
+        "logged" => "ثبت تست",
+        "pending" => "در انتظار",
+        _ => "خطا"
+    };
+}

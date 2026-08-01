@@ -1,0 +1,284 @@
+@page "/items"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>اجناس و انبار</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">📦 اجناس و انبار</h2>
+            <p class="text-sm text-gray-500 mt-1">ثبت جنس (عیار، وزن، اجرت، سنگ)، کد/بارکد خودکار و ارزش روز.</p>
+        </div>
+        <button @onclick="() => { editingId = 0; OpenForm(); }" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ افزودن جنس</button>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <!-- خلاصه انبار -->
+    @{
+        var stock = Svc.ItemsStock();
+        long rate = Svc.CurrentRate();
+    }
+    <div class="grid grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border"><p class="text-xs text-gray-500">اجناس موجود</p><p class="text-lg font-bold text-gray-800 mt-1">@Talayar.Dig(stock.count) قلم</p></div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border"><p class="text-xs text-gray-500">وزن اجناس موجود</p><p class="text-lg font-bold text-gray-800 mt-1">@Talayar.Mw(stock.wmw) گرم</p></div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">ارزش تقریبی طلای موجود</p>
+            <p class="text-lg font-bold text-amber-700 mt-1">@(rate > 0 && stock.wmw > 0 ? Talayar.Money((long)Math.Round(stock.wmw * rate / 1000.0)) + " تومان" : "—")</p>
+        </div>
+    </div>
+
+    <!-- جستجو و فیلتر -->
+    <div class="flex flex-col md:flex-row gap-3">
+        <input @bind="q" @bind:event="oninput" placeholder="جستجو: نام یا کد جنس…" class="flex-1 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+        <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
+            @for (int i = 0; i < 3; i++)
+            {
+                var idx = i;
+                <button @onclick="() => filter = idx" class="px-4 py-2 rounded-lg text-xs font-bold transition @(filter == idx ? "bg-white shadow text-amber-700" : "text-gray-500")">@(idx == 0 ? "همه" : idx == 1 ? "فقط موجود" : "فروخته‌شده")</button>
+            }
+        </div>
+    </div>
+
+    @if (formOpen)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+            <h3 class="text-lg font-bold text-gray-800">@(editingId == 0 ? "جنس جدید" : "ویرایش جنس")</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">نام جنس</label>
+                    <input @bind="fName" class="w-full border rounded-xl p-2.5 text-sm" placeholder="مثلاً النگو، انگشتر…" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">کد جنس / بارکد (خالی = خودکار)</label>
+                    <input @bind="fCode" class="w-full border rounded-xl p-2.5 text-sm" placeholder="خودکار" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">عیار</label>
+                    <div class="flex gap-1">
+                        @for (int i = 0; i < Talayar.KARAT_LABELS.Length; i++)
+                        {
+                            var idx = i;
+                            <button @onclick="() => fKarat = Talayar.KARATS[idx]" class="flex-1 py-2 rounded-lg text-xs font-bold transition @(fKarat == Talayar.KARATS[idx] ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600")">@Talayar.KARAT_LABELS[idx]</button>
+                        }
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">وزن (گرم)</label>
+                    <input @bind="fWeight" class="w-full border rounded-xl p-2.5 text-sm" placeholder="مثلاً ۱۲٫۳۵۰" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">نوع اجرت</label>
+                    <div class="flex gap-1">
+                        @for (int i = 0; i < 3; i++)
+                        {
+                            var idx = i;
+                            <button @onclick="() => fWtype = idx" class="flex-1 py-2 rounded-lg text-xs font-bold transition @(fWtype == idx ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600")">@(idx == 0 ? "درصدی" : idx == 1 ? "تومان/گرم" : "ثابت")</button>
+                        }
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">مقدار اجرت</label>
+                    <input @bind="fWage" class="w-full border rounded-xl p-2.5 text-sm" placeholder="@WageHint()" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">ارزش سنگ / مزین (تومان)</label>
+                    <input @bind="fStone" class="w-full border rounded-xl p-2.5 text-sm" placeholder="۰" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">توضیح</label>
+                    <input @bind="fDescr" class="w-full border rounded-xl p-2.5 text-sm" placeholder="اختیاری" />
+                </div>
+            </div>
+
+            @{
+                long fw = Talayar.ParseMw(fWeight);
+                long gold = fw > 0 ? (long)Math.Round(Talayar.Equiv750(fw, fKarat) * rate / 1000.0) : 0;
+                long wage = fw > 0 ? TalayarService.CalcWage(gold, fw, fWtype, Talayar.ParseMoney(fWage)) : 0;
+                long tax = fw > 0 ? (long)Math.Round(wage * taxPct / 100.0) : 0;
+                long stone = Talayar.ParseMoney(fStone);
+            }
+            <div class="bg-slate-900 text-white rounded-xl p-4 text-sm">
+                <span class="text-slate-300">برآورد ارزش روز: </span>
+                <b class="text-amber-400">@(fw > 0 && rate > 0 ? Talayar.Money(gold + wage + tax + stone) + " تومان" : "—")</b>
+                @if (fw > 0 && rate > 0)
+                {
+                    <span class="text-slate-400 text-xs"> (طلا @Talayar.Money(gold) • اجرت @Talayar.Money(wage) • مالیات @Talayar.Money(tax) • سنگ @Talayar.Money(stone))</span>
+                }
+            </div>
+
+            <div class="flex gap-2">
+                <button @onclick="Save" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">@(editingId == 0 ? "ذخیره جنس" : "ذخیره تغییرات")</button>
+                @if (editingId > 0)
+                {
+                    <button @onclick="Delete" class="bg-red-50 hover:bg-red-100 text-red-700 px-6 py-2.5 rounded-xl font-bold text-sm">حذف جنس</button>
+                }
+                <button @onclick="() => formOpen = false" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    <!-- لیست -->
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="divide-y">
+            @foreach (var it in items)
+            {
+                <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-gray-50 cursor-pointer" @onclick="() => { editingId = it.Id; OpenForm(); }">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <p class="font-bold text-gray-800">@it.Name</p>
+                            <span class="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold">@(it.Status == "stock" ? "موجود" : "فروخته‌شده")</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">@Talayar.KaratName(it.Karat) • کد @Talayar.Dig(it.Code) • @Talayar.Mw(it.Wmw) گرم</p>
+                        <p class="text-xs text-gray-500">@WageText(it)</p>
+                    </div>
+                    @if (rate > 0)
+                    {
+                        long gv = (long)Math.Round(Talayar.Equiv750(it.Wmw, it.Karat) * rate / 1000.0);
+                        long wv = TalayarService.CalcWage(gv, it.Wmw, it.WType, it.WVal);
+                        <div class="text-green-700 font-bold text-sm">≈ @Talayar.Money(gv + wv + it.StoneVal) تومان</div>
+                    }
+                </div>
+            }
+            @if (!items.Any())
+            {
+                <p class="p-10 text-center text-gray-400 text-sm">جنس ثبت نشده است. از دکمهٔ «افزودن جنس» شروع کنید.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Item> items = new();
+    private string q = "";
+    private int filter;
+
+    private bool formOpen;
+    private int editingId;
+    private string fName = "", fCode = "", fWeight = "", fWage = "", fStone = "", fDescr = "";
+    private int fKarat = 750, fWtype;
+    private string msg = "", err = "";
+
+    private long taxPct => Svc.GetL("tax", 10);
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        var list = Db.Items.AsQueryable();
+        if (filter == 1) list = list.Where(i => i.Status == "stock");
+        if (filter == 2) list = list.Where(i => i.Status == "sold");
+        var all = list.OrderByDescending(i => i.Cts).Take(500).ToList();
+        string sq = Talayar.En(q).Trim();
+        if (sq.Length > 0)
+            all = all.Where(i => Talayar.En(i.Name + " " + i.Code).Contains(sq)).ToList();
+        items = all;
+    }
+
+    private string WageText(Item it)
+    {
+        string wtxt = it.WType == 0 ? "اجرت " + Talayar.Pct(it.WVal)
+            : it.WType == 1 ? "اجرت " + Talayar.Money(it.WVal) + " ت/گرم"
+            : "اجرت " + Talayar.Money(it.WVal) + " تومان";
+        return wtxt + (it.StoneVal > 0 ? " • سنگ " + Talayar.Money(it.StoneVal) : "");
+    }
+
+    private string WageHint() =>
+        fWtype == 0 ? "درصد (مثلاً ۷)" : fWtype == 1 ? "تومان به ازای هر گرم" : "مبلغ ثابت به تومان";
+
+    private void OpenForm()
+    {
+        msg = ""; err = "";
+        if (editingId == 0)
+        {
+            fName = ""; fCode = ""; fWeight = ""; fWage = ""; fStone = "0"; fDescr = "";
+            fKarat = 750; fWtype = 0;
+        }
+        else
+        {
+            var it = Db.Items.FirstOrDefault(i => i.Id == editingId);
+            if (it != null)
+            {
+                fName = it.Name;
+                fCode = it.Code > 0 ? it.Code.ToString() : "";
+                fWeight = it.Wmw > 0 ? Talayar.Mw(it.Wmw) : "";
+                fKarat = it.Karat;
+                fWtype = it.WType;
+                fWage = it.WVal > 0 ? it.WVal.ToString() : "";
+                fStone = it.StoneVal > 0 ? it.StoneVal.ToString() : "0";
+                fDescr = it.Descr;
+            }
+        }
+        formOpen = true;
+    }
+
+    private void Save()
+    {
+        err = ""; msg = "";
+        if (fName.Trim().Length == 0) { err = "نام جنس را بنویسید"; return; }
+        long w = Talayar.ParseMw(fWeight);
+        if (w <= 0) { err = "وزن معتبر وارد کنید"; return; }
+        long code = Talayar.ParseMoney(fCode);
+        if (code <= 0)
+            code = (Db.Items.Any() ? Db.Items.Max(i => i.Code) : 0) + 1;
+        if (Db.Items.Any(i => i.Code == code && i.Id != editingId)) { err = "این کد قبلاً استفاده شده است"; return; }
+
+        if (editingId == 0)
+        {
+            Db.Items.Add(new Item
+            {
+                Code = code,
+                Name = fName.Trim(),
+                Karat = fKarat,
+                Wmw = w,
+                WType = fWtype,
+                WVal = Talayar.ParseMoney(fWage),
+                StoneMw = 0,
+                StoneVal = Talayar.ParseMoney(fStone),
+                Descr = fDescr.Trim(),
+                Status = "stock",
+                Cts = DateTimeOffset.Now.ToUnixTimeMilliseconds()
+            });
+        }
+        else
+        {
+            var it = Db.Items.FirstOrDefault(i => i.Id == editingId);
+            if (it != null)
+            {
+                it.Code = code; it.Name = fName.Trim(); it.Karat = fKarat; it.Wmw = w;
+                it.WType = fWtype; it.WVal = Talayar.ParseMoney(fWage);
+                it.StoneVal = Talayar.ParseMoney(fStone); it.Descr = fDescr.Trim();
+            }
+        }
+        Db.SaveChanges();
+        msg = "جنس ذخیره شد ✓";
+        formOpen = false;
+        Load();
+    }
+
+    private void Delete()
+    {
+        err = "";
+        if (Db.InvoiceLines.Any(l => l.ItemId == editingId))
+        {
+            err = "این جنس در فاکتورها استفاده شده و برای حفظ صحت اسناد قابل حذف نیست.";
+            return;
+        }
+        var it = Db.Items.FirstOrDefault(i => i.Id == editingId);
+        if (it != null) { Db.Items.Remove(it); Db.SaveChanges(); }
+        msg = "حذف شد ✓";
+        formOpen = false;
+        Load();
+    }
+}
