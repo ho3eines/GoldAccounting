@@ -87,7 +87,7 @@ public class ItemEditActivity extends A {
         int w = mwOf(eWeight);
         if (w <= 0) { sumTv.setText("—"); return; }
         long gold = Math.round(U.equiv750(w, karat) * rate / 1000.0);
-        long wage = calcWage(gold, w, wtype, (int) U.parseMoney(U.str(eWage)));
+        long wage = calcWage(gold, w, wtype, (double) U.parseMoney(U.str(eWage)));
         long tax = Math.round(wage * db.getL("tax", 10) / 100.0);
         long stone = moneyOf(eStoneVal);
         sumTv.setText("طلا: " + U.money(gold) + " • اجرت: " + U.money(wage) + " • مالیات: " + U.money(tax)

@@ -84,3 +84,8 @@ bash build.sh
 ```
 
 </div>
+
+- راهنمای فارسی: android/res/raw/guide_fa.txt
+- رفع اجرت: wage به double تغییر یافت
+- API قیمت روز: اضافه شود پس از دریافت endpoint
+- خرید متفرقه از مشتری: نیاز به ماژول جدید دارد
