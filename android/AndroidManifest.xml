@@ -39,6 +39,7 @@
         <activity android:name=".PricesActivity" android:exported="false"/>
         <activity android:name=".DefsActivity" android:exported="false"/>
         <activity android:name=".AssetsActivity" android:exported="false"/>
+        <activity android:name=".GuideActivity" android:exported="false"/>
         <activity android:name=".DocNewActivity" android:exported="false"/>
         <activity android:name=".DocsActivity" android:exported="false"/>
         <activity android:name=".ChecksActivity" android:exported="false"/>
