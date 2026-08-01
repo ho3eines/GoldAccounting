@@ -1,6 +1,7 @@
 @page "/customers/{id:int}"
 @inject AppDbContext Db
 @inject TalayarService Svc
+@inject SmsService Sms
 @inject NavigationManager Nav
 
 <PageTitle>پرونده مشتری</PageTitle>
@@ -80,6 +81,36 @@
             <a href="/docs/new?cid=@Id" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-3 rounded-xl font-bold text-sm text-center">📜 سند جدید</a>
             <a href="/customers?edit=@Id" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-bold text-sm text-center">✎ ویرایش پرونده</a>
         </div>
+
+        @if (cust.Phone.Length >= 10)
+        {
+            <div class="card-lux p-5">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">📲 پیامک</h3>
+                <p class="text-[11px] text-gray-400 mt-1">ارسال پیامک به @Talayar.Dig(cust.Phone) — در حالت تست، پیام فقط در «لاگ پیامک‌ها» ثبت می‌شود.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button @onclick="SendBalanceSms" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-bold text-xs">💰 ارسال مانده حساب</button>
+                    <button @onclick="SendBirthdaySms" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-xl font-bold text-xs">🎂 تبریک تولد</button>
+                    <button @onclick="SendAnniversarySms" class="bg-purple-100 hover:bg-purple-200 text-purple-800 px-4 py-2 rounded-xl font-bold text-xs">💍 تبریک سالگرد</button>
+                </div>
+                @if (smsMsg.Length > 0)
+                {
+                    <p class="text-xs font-bold mt-2 @(smsMsg.StartsWith("خطا") ? "text-red-600" : "text-green-700")">@smsMsg</p>
+                }
+            </div>
+        }
+        @if (cust.BirthdayJ.Length >= 10 || cust.AnniversaryJ.Length >= 10)
+        {
+            <div class="card-lux p-5 flex flex-wrap gap-4 text-sm">
+                @if (cust.BirthdayJ.Length >= 10)
+                {
+                    <span><span class="text-gray-500">🎂 تولد:</span> <b>@Talayar.Dig(cust.BirthdayJ)</b></span>
+                }
+                @if (cust.AnniversaryJ.Length >= 10)
+                {
+                    <span><span class="text-gray-500">💍 سالگرد:</span> <b>@Talayar.Dig(cust.AnniversaryJ)</b></span>
+                }
+            </div>
+        }
 
         @if (payCashOpen)
         {
@@ -175,6 +206,27 @@
     private void Load()
     {
         cust = Db.Customers.FirstOrDefault(c => c.Id == Id);
+    }
+
+    private string smsMsg = "";
+
+    private async Task SendBalanceSms()
+    {
+        var bal = Svc.CustomerSums(Id);
+        var r = await Sms.SendBalanceAsync(cust!, bal.cash, bal.gold);
+        smsMsg = r == "sent" ? "پیامک ارسال شد ✓" : r == "logged" ? "در حالت تست ثبت شد (SMS غیرفعال)" : "خطا: " + r;
+    }
+
+    private async Task SendBirthdaySms()
+    {
+        var r = await Sms.SendBirthdayAsync(cust!);
+        smsMsg = r == "sent" ? "پیامک ارسال شد ✓" : r == "logged" ? "در حالت تست ثبت شد (SMS غیرفعال)" : "خطا: " + r;
+    }
+
+    private async Task SendAnniversarySms()
+    {
+        var r = await Sms.SendAnniversaryAsync(cust!);
+        smsMsg = r == "sent" ? "پیامک ارسال شد ✓" : r == "logged" ? "در حالت تست ثبت شد (SMS غیرفعال)" : "خطا: " + r;
     }
 
     private void OpenPayCash() { payCashOpen = true; payGoldOpen = false; payCashAmt = ""; payDescr = ""; }

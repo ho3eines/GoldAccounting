@@ -33,6 +33,9 @@ namespace GoldAccounting.Server.Data
         public DbSet<MarketPrice> MarketPrices { get; set; }
         public DbSet<ResourceLog> ResourceLogs { get; set; }
         public DbSet<ShopRequest> ShopRequests { get; set; }
+        public DbSet<Branch> Branches { get; set; }
+        public DbSet<EventLog> Events { get; set; }
+        public DbSet<SmsLog> SmsLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -56,6 +59,9 @@ namespace GoldAccounting.Server.Data
         public string Address { get; set; } = string.Empty;
         public string Note { get; set; } = string.Empty;
         public long Cts { get; set; }
+        public string BirthdayJ { get; set; } = string.Empty;
+        public string AnniversaryJ { get; set; } = string.Empty;
+        public bool SmsConsent { get; set; } = true;
     }
 
     public class Item
@@ -96,6 +102,7 @@ namespace GoldAccounting.Server.Data
         public long Debt { get; set; }
         public string Note { get; set; } = string.Empty;
         public string TransferCode { get; set; } = string.Empty; // Idempotent check
+        public int BranchId { get; set; }
         public List<InvoiceLine> Lines { get; set; } = new();
     }
 

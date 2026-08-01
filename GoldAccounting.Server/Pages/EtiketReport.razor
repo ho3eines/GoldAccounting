@@ -1,0 +1,131 @@
+@page "/reports/etikets"
+@inject AppDbContext Db
+@inject IJSRuntime JS
+
+<PageTitle>گزارش اتیکت‌ها</PageTitle>
+
+<div class="space-y-6 max-w-5xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🏷 گزارش اتیکت‌ها</h2>
+            <p class="text-sm text-gray-500 mt-1">گزارش اتیکت‌ها به تفکیک شعبه، وضعیت و وزن — با دانلود آفلاین و اشتراک‌گذاری.</p>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick="DownloadHtml" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-xs">⬇ دانلود (آفلاین)</button>
+            <button @onclick="ShareText" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2.5 rounded-xl font-bold text-xs">📤 اشتراک</button>
+        </div>
+    </div>
+
+    <!-- فیلتر شعبه -->
+    <div class="card-lux p-4 flex flex-col md:flex-row items-center gap-3">
+        <span class="text-xs font-bold text-gray-500">🏢 شعبه:</span>
+        <select @bind="branchId" @bind:after="Load" class="flex-1 border rounded-xl p-2.5 text-sm">
+            <option value="0">— همهٔ شعب —</option>
+            <option value="-1">شعبه اصلی</option>
+            @foreach (var b in Db.Branches.OrderBy(b => b.Code))
+            {
+                <option value="@b.Id">@b.Name</option>
+            }
+        </select>
+        <span class="text-xs font-bold text-gray-500">وضعیت:</span>
+        <select @bind="statusFilter" @bind:after="Load" class="flex-1 border rounded-xl p-2.5 text-sm">
+            <option value="">همهٔ وضعیت‌ها</option>
+            <option value="stock">موجود</option>
+            <option value="sold">فروخته‌شده</option>
+            <option value="out">خارج‌شده</option>
+        </select>
+    </div>
+
+    <!-- خلاصه -->
+    @{
+        long totalW = list.Sum(e => e.Wmw);
+        int stockN = list.Count(e => e.Status == "stock");
+        int soldN = list.Count(e => e.Status == "sold");
+        int outN = list.Count(e => e.Status == "out");
+    }
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card-lux p-4"><p class="text-xs text-gray-500">تعداد</p><p class="text-xl font-bold text-gray-800 mt-1">@Talayar.Dig(list.Count)</p></div>
+        <div class="card-lux p-4"><p class="text-xs text-gray-500">مجموع وزن</p><p class="text-xl font-bold text-amber-700 mt-1">@Talayar.Gs(totalW)</p></div>
+        <div class="card-lux p-4"><p class="text-xs text-gray-500">موجود / فروخته</p><p class="text-xl font-bold text-green-600 mt-1">@Talayar.Dig(stockN) / @Talayar.Dig(soldN)</p></div>
+        <div class="card-lux p-4"><p class="text-xs text-gray-500">خارج‌شده</p><p class="text-xl font-bold text-red-500 mt-1">@Talayar.Dig(outN)</p></div>
+    </div>
+
+    <!-- جدول -->
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="table-responsive">
+            <table class="w-full text-right border-collapse min-w-[700px]">
+                <thead>
+                    <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                        <th class="p-3">کد</th>
+                        <th class="p-3">نام</th>
+                        <th class="p-3">وزن</th>
+                        <th class="p-3">مزنه</th>
+                        <th class="p-3">شعبه</th>
+                        <th class="p-3">وضعیت</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y text-sm text-gray-700">
+                    @foreach (var e in list)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 font-mono font-bold text-amber-600">@Talayar.Dig(e.Code)</td>
+                            <td class="p-3 font-semibold">@e.Name</td>
+                            <td class="p-3">@Talayar.Gs(e.Wmw)</td>
+                            <td class="p-3 text-xs text-gray-500">@(e.Mezane.Length > 0 ? e.Mezane : "—")</td>
+                            <td class="p-3">@(e.BranchId > 0 ? (Db.Branches.FirstOrDefault(b => b.Id == e.BranchId)?.Name ?? "—") : "اصلی")</td>
+                            <td class="p-3">
+                                <span class="badge @(e.Status == "stock" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")">
+                                    @(e.Status == "stock" ? "موجود" : e.Status == "sold" ? "فروخته‌شده" : "خارج‌شده")
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                    @if (!list.Any())
+                    {
+                        <tr><td colspan="6" class="p-10 text-center text-gray-400">اتیکتی با این فیلترها یافت نشد.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Etiket> list = new();
+    private int branchId;
+    private string statusFilter = "";
+
+    protected override void OnInitialized() { Load(); }
+
+    private void Load()
+    {
+        var q = Db.Etikets.AsQueryable();
+        if (branchId == -1) q = q.Where(e => e.BranchId == 0);
+        else if (branchId > 0) q = q.Where(e => e.BranchId == branchId);
+        if (statusFilter.Length > 0) q = q.Where(e => e.Status == statusFilter);
+        list = q.OrderBy(e => e.Code).ThenBy(e => e.Id).ToList();
+        StateHasChanged();
+    }
+
+    private string BranchName => branchId switch
+    {
+        0 => "همهٔ شعب",
+        -1 => "شعبه اصلی",
+        _ => Db.Branches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "—"
+    };
+
+    private async Task DownloadHtml()
+    {
+        var html = ReportHtml.EtiketsReport(list, BranchName);
+        await JS.InvokeVoidAsync("downloadText", "talayar-etikets-" + Talayar.Jal.Today().Replace("/", "") + ".html", html, "text/html");
+    }
+
+    private async Task ShareText()
+    {
+        long w = list.Sum(e => e.Wmw);
+        var text = $"🏷 گزارش اتیکت‌ها ({BranchName})\n"
+                 + $"تعداد: {Talayar.Dig(list.Count)} • وزن: {Talayar.Gs(w)}\n"
+                 + $"موجود: {Talayar.Dig(list.Count(e => e.Status == "stock"))} • فروخته: {Talayar.Dig(list.Count(e => e.Status == "sold"))}\n— طلایار";
+        await JS.InvokeVoidAsync("shareText", "گزارش اتیکت‌ها", text);
+    }
+}

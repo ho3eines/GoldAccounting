@@ -1,0 +1,116 @@
+@page "/win-login"
+@inject AppDbContext Db
+@inject IJSRuntime JS
+
+<PageTitle>ورود نسخهٔ ویندوز با موبایل</PageTitle>
+
+<div class="space-y-6 max-w-3xl mx-auto">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">🖥️ ورود نسخهٔ ویندوز با برنامهٔ موبایل</h2>
+        <p class="text-sm text-gray-500 mt-1">بدون نیاز به قفل سخت‌افزاری — احراز هویت با کد یک‌بارمصرف تولیدشده توسط موبایل (یا وب).</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- درخواست کد از موبایل -->
+        <div class="card-lux p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">📱 مرحله ۱ — درخواست کد (از موبایل/وب)</h3>
+            <p class="text-[11px] text-gray-400">نام کاربری و رمز عبور معتبر را وارد کنید تا یک کد ۶ رقمی برای ورود ویندوز صادر شود.</p>
+            <input @bind="reqUsername" placeholder="نام کاربری" class="w-full border rounded-xl p-3 text-sm" />
+            <input @bind="reqPassword" type="password" placeholder="رمز عبور" class="w-full border rounded-xl p-3 text-sm" />
+            <button @onclick="RequestCode" class="w-full btn-gold py-3 text-sm">دریافت کد ورود</button>
+            @if (codeResult.Length > 0)
+            {
+                <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-center">
+                    <p class="text-xs font-bold">کد یک‌بارمصرف شما (۵ دقیقه معتبر):</p>
+                    <p class="text-3xl font-black tracking-widest font-mono mt-1">@codeResult</p>
+                </div>
+            }
+            @if (codeErr.Length > 0)
+            {
+                <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-semibold">@codeErr</div>
+            }
+        </div>
+
+        <!-- واردکردن کد در ویندوز -->
+        <div class="card-lux p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">🖥️ مرحله ۲ — ورود کد در ویندوز</h3>
+            <p class="text-[11px] text-gray-400">کد دریافتی از موبایل را در نسخهٔ ویندوز وارد کنید — بدون قفل سخت‌افزاری، فقط با کد.</p>
+            <input @bind="winUsername" placeholder="نام کاربری" class="w-full border rounded-xl p-3 text-sm" />
+            <input @bind="winCode" placeholder="کد ۶ رقمی" class="w-full border rounded-xl p-3 text-sm text-center font-mono tracking-widest" />
+            <button @onclick="VerifyCode" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold text-sm">تأیید و ورود</button>
+            @if (verifyResult.Length > 0)
+            {
+                <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-center">
+                    <p class="text-xs font-bold">✅ ورود موفق — توکن نشست:</p>
+                    <p class="text-[10px] font-mono break-all mt-1">@verifyResult</p>
+                </div>
+            }
+            @if (verifyErr.Length > 0)
+            {
+                <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-semibold">@verifyErr</div>
+            }
+        </div>
+    </div>
+
+    <!-- API -->
+    <div class="card-lux p-6">
+        <h3 class="font-bold text-gray-800">🔌 API برای نسخهٔ ویندوز</h3>
+        <div class="mt-3 space-y-1 text-xs font-mono bg-slate-900 text-amber-300 rounded-xl p-4 leading-relaxed">
+            <p>// درخواست کد (از موبایل):</p>
+            <p>POST /api/auth/win-request { "username": "...", "password": "..." } → { "code": "123456" }</p>
+            <p>// تأیید کد (در ویندوز):</p>
+            <p>POST /api/auth/win-verify { "username": "...", "code": "123456" } → { "token": "..." }</p>
+            <p>// دریافت رویدادها (ویندوز می‌تواند آن‌ها را ارسال کند):</p>
+            <p>POST /api/events { "action": "app_login", "details": "..." }</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string reqUsername = "", reqPassword = "", codeResult = "", codeErr = "";
+    private string winUsername = "", winCode = "", verifyResult = "", verifyErr = "";
+
+    private async Task RequestCode()
+    {
+        codeResult = ""; codeErr = "";
+        try
+        {
+            var resp = await Http.PostAsJsonAsync("/api/auth/win-request", new { username = reqUsername, password = reqPassword });
+            var json = await resp.Content.ReadAsStringAsync();
+            if (resp.IsSuccessStatusCode)
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(json);
+                codeResult = doc.RootElement.TryGetProperty("code", out var c) ? c.GetString() ?? "" : "";
+            }
+            else
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(json);
+                codeErr = doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() ?? "خطا" : "خطا";
+            }
+        }
+        catch (Exception ex) { codeErr = ex.Message; }
+    }
+
+    private async Task VerifyCode()
+    {
+        verifyResult = ""; verifyErr = "";
+        try
+        {
+            var resp = await Http.PostAsJsonAsync("/api/auth/win-verify", new { username = winUsername, code = winCode });
+            var json = await resp.Content.ReadAsStringAsync();
+            if (resp.IsSuccessStatusCode)
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(json);
+                verifyResult = doc.RootElement.TryGetProperty("token", out var t) ? t.GetString() ?? "" : "";
+            }
+            else
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(json);
+                verifyErr = doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() ?? "خطا" : "خطا";
+            }
+        }
+        catch (Exception ex) { verifyErr = ex.Message; }
+    }
+
+    [Inject] private HttpClient Http { get; set; } = null!;
+}

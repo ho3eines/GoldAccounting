@@ -12,12 +12,14 @@ namespace GoldAccounting.Server.Controllers
     public class BackupController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly EventService _events;
 
-        public BackupController(AppDbContext db) { _db = db; }
+        public BackupController(AppDbContext db, EventService events) { _db = db; _events = events; }
 
         [HttpGet("download")]
         public IActionResult Download()
         {
+            _events.LogBackup("download", "دانلود فایل پشتیبان");
             var root = new JsonObject
             {
                 ["app"] = "talayar-backup",
@@ -53,6 +55,7 @@ namespace GoldAccounting.Server.Controllers
         {
             try
             {
+                _events.LogBackup("restore", "بازیابی از فایل پشتیبان");
                 using var reader = new StreamReader(Request.Body);
                 string body = await reader.ReadToEndAsync();
                 using var doc = JsonDocument.Parse(body);

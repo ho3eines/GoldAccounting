@@ -89,6 +89,14 @@
                     <label class="block text-xs text-gray-500 mb-1">یادداشت</label>
                     <input @bind="fNote" class="w-full border rounded-xl p-2.5 text-sm" />
                 </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">تاریخ تولد (شمسی — ۱۳۶۸/۰۵/۰۹)</label>
+                    <input @bind="fBirthday" class="w-full border rounded-xl p-2.5 text-sm" placeholder="مثلاً ۱۳۶۸/۰۵/۰۹" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">سالگرد ازدواج (شمسی)</label>
+                    <input @bind="fAnniversary" class="w-full border rounded-xl p-2.5 text-sm" placeholder="مثلاً ۱۳۹۵/۰۳/۱۴" />
+                </div>
             </div>
             <div class="flex gap-2">
                 <button @onclick="SaveCustomer" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">@(editingId == 0 ? "ثبت" : "ذخیره")</button>
@@ -204,7 +212,7 @@
 
     private bool formOpen;
     private int editingId;
-    private string fName = "", fCode = "", fGrp = "", fPhone = "", fAddr = "", fNote = "";
+    private string fName = "", fCode = "", fGrp = "", fPhone = "", fAddr = "", fNote = "", fBirthday = "", fAnniversary = "";
 
     private GroupReport? groupReport;
     private List<RowView> groupRows = new();
@@ -245,7 +253,7 @@
         if (editingId == 0)
         {
             long next = (Db.Customers.Any() ? Db.Customers.Max(c => c.Code) : 0) + 1;
-            fName = ""; fCode = next.ToString(); fGrp = ""; fPhone = ""; fAddr = ""; fNote = "";
+            fName = ""; fCode = next.ToString(); fGrp = ""; fPhone = ""; fAddr = ""; fNote = ""; fBirthday = ""; fAnniversary = "";
         }
         else
         {
@@ -254,6 +262,7 @@
             {
                 fName = c.Name; fCode = c.Code.ToString(); fGrp = c.Grp;
                 fPhone = c.Phone; fAddr = c.Address; fNote = c.Note;
+                fBirthday = c.BirthdayJ; fAnniversary = c.AnniversaryJ;
             }
         }
         formOpen = true;
@@ -277,6 +286,8 @@
                 Phone = Talayar.En(fPhone),
                 Address = fAddr.Trim(),
                 Note = fNote.Trim(),
+                BirthdayJ = Talayar.En(fBirthday).Trim(),
+                AnniversaryJ = Talayar.En(fAnniversary).Trim(),
                 Cts = DateTimeOffset.Now.ToUnixTimeMilliseconds()
             });
         }
@@ -287,6 +298,7 @@
             {
                 c.Code = (int)cd; c.Name = fName.Trim(); c.Grp = fGrp;
                 c.Phone = Talayar.En(fPhone); c.Address = fAddr.Trim(); c.Note = fNote.Trim();
+                c.BirthdayJ = Talayar.En(fBirthday).Trim(); c.AnniversaryJ = Talayar.En(fAnniversary).Trim();
             }
         }
         Db.SaveChanges();

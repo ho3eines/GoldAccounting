@@ -34,6 +34,8 @@ namespace GoldAccounting.Server.Services
         public int PgoldKarat { get; set; }
         public long Debt { get; set; }
         public string Note { get; set; } = "";
+        public int BranchId { get; set; }
+        public long Total => Lines.Sum(l => l.Total);
     }
 
     public class DocDraft
@@ -56,6 +58,7 @@ namespace GoldAccounting.Server.Services
         public int Settle { get; set; }        // 0=به حساب 1=نقدی 2=بانکی
         public int EtiketId { get; set; }
         public string Note { get; set; } = "";
+        public int BranchId { get; set; }
     }
 
     /// <summary>موتور کامل حسابداری طلایار — پورت Db.java + Post.java + عملیات ثبت/ابطال اندروید</summary>
@@ -955,6 +958,23 @@ namespace GoldAccounting.Server.Services
                 ? 0
                 : (long)Math.Round(wage * GetL("tax", 10) / 100.0);
             return (gold, wage, tax, gold + wage + it.StoneVal + tax);
+        }
+
+        /// <summary>قیمت تمام‌شدهٔ اتیکت (طلا یا جواهر) بر اساس نرخ روز</summary>
+        /// اتیکتِ متصل به جنس انبار → همان قیمت جنس؛ در غیر این صورت طلا + اجرت پیش‌فرض اتیکت
+        public (long gold, long wage, long tax, long total) EtiketPrice(Etiket e, long rate)
+        {
+            if (e.ItemId > 0)
+            {
+                var it = db.Items.FirstOrDefault(i => i.Id == e.ItemId);
+                if (it != null) return ItemPrice(it, rate);
+            }
+            // کارساخته/اتیکت بدون جنس: فرض عیار ۱۸ و اجرت پیش‌فرض اتیکت
+            long wagePct = GetL("etiket_wage_pct", 7);
+            long gold = (long)Math.Round(Talayar.Equiv750(e.Wmw, 750) * rate / 1000.0);
+            long wage = (long)Math.Round(gold * wagePct / 100.0);
+            long tax = (long)Math.Round(wage * GetL("tax", 10) / 100.0);
+            return (gold, wage, tax, gold + wage + tax);
         }
 
         // ---------- کدینگ ----------

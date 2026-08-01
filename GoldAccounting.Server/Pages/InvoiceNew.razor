@@ -1,6 +1,8 @@
 @page "/invoices/new"
 @inject AppDbContext Db
 @inject TalayarService Svc
+@inject EventService Events
+@inject SmsService Sms
 @inject NavigationManager Nav
 
 <PageTitle>فاکتور فروش جدید</PageTitle>
@@ -43,6 +45,16 @@
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">نرخ روز (گرم ۱۸ عیار)</label>
                 <div class="p-2.5 rounded-xl bg-amber-50 text-amber-800 font-bold text-sm">@(rate > 0 ? Talayar.Money(rate) + " تومان" : "ثبت نشده ⚠")</div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">شعبه</label>
+                <select @bind="branchId" class="w-full border rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    <option value="0">شعبه اصلی</option>
+                    @foreach (var b in Db.Branches.Where(b => b.IsActive).OrderBy(b => b.Code))
+                    {
+                        <option value="@b.Id">@b.Name</option>
+                    }
+                </select>
             </div>
         </div>
     </div>
@@ -241,6 +253,7 @@
     private int mKarat = 750, mWtype = 0;
 
     private int cid;
+    private int branchId;
     private string dateJ = "";
     private string cashInput = "0", goldInput = "0", rasubInput = "0", noteInput = "";
     private int payKarat = 750;
@@ -412,7 +425,21 @@
                 Unit = ln.Unit, GoldVal = ln.GoldVal, Wage = ln.Wage, Tax = ln.Tax, Total = ln.Total
             });
         }
+        d.BranchId = branchId;
         long id = Svc.SaveInvoice(d);
+
+        Events.LogInvoice((int)id, "فاکتور فروش به " + (d.Cname.Length > 0 ? d.Cname : "عابر") + " — مبلغ " + Talayar.Money(d.Total), "admin", branchId);
+
+        if (cid > 0)
+        {
+            var cust = Db.Customers.FirstOrDefault(c => c.Id == cid);
+            if (cust != null && cust.Phone.Length >= 10 && cust.SmsConsent)
+            {
+                var bal = Svc.CustomerSums(cid);
+                _ = Sms.SendBalanceAsync(cust, bal.cash, bal.gold);
+            }
+        }
+
         msg = "فاکتور شماره " + Talayar.Dig(id) + " ثبت شد ✓";
         Nav.NavigateTo("/invoices/" + id);
     }

@@ -1,6 +1,8 @@
 @page "/docs/new"
 @inject AppDbContext Db
 @inject TalayarService Svc
+@inject EventService Events
+@inject SmsService Sms
 @inject NavigationManager Nav
 
 <PageTitle>ثبت سند جدید</PageTitle>
@@ -55,6 +57,16 @@
             <div>
                 <label class="block text-xs text-gray-500 mb-1">تاریخ سند (شمسی)</label>
                 <input @bind="dateJ" class="w-full border rounded-xl p-2.5 text-sm" />
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">شعبه</label>
+                <select @bind="branchId" class="w-full border rounded-xl p-2.5 text-sm">
+                    <option value="0">شعبه اصلی</option>
+                    @foreach (var b in Db.Branches.Where(b => b.IsActive).OrderBy(b => b.Code))
+                    {
+                        <option value="@b.Id">@b.Name</option>
+                    }
+                </select>
             </div>
             @if (SvcNeedCustomer)
             {
@@ -224,6 +236,7 @@
     private string groupKeys = "";
     private string dateJ = "";
     private int cid;
+    private int branchId;
     private int karat = 750;
     private int defId, bankId, settle, etiketId;
     private string wInput = "", countInput = "", qtyInput = "", moneyInput = "", rateInput = "", wageInput = "", noInput = "", dueInput = "", note = "";
@@ -354,7 +367,23 @@
         if (SvcNeedQty && d.QtyCur <= 0) { err = "مقدار ارز را وارد کنید"; return; }
         if (SvcNeedMoney && d.Money <= 0) { err = "مبلغ معتبر وارد کنید"; return; }
 
+        d.BranchId = branchId;
         long id = Svc.SaveDoc(d);
+
+        // ثبت رویداد
+        Events.LogDoc((int)id, "create", "سند " + TalayarService.TypeLabel(type) + " — " + (d.Cname.Length > 0 ? d.Cname : "بدون مشتری"), "admin", branchId);
+
+        // ارسال خودکار پیامک مانده حساب پس از ثبت سند
+        if (cid > 0 && SvcNeedCustomer)
+        {
+            var cust = Db.Customers.FirstOrDefault(c => c.Id == cid);
+            if (cust != null && cust.Phone.Length >= 10 && cust.SmsConsent)
+            {
+                var bal = Svc.CustomerSums(cid);
+                _ = Sms.SendBalanceAsync(cust, bal.cash, bal.gold);
+            }
+        }
+
         msg = "سند شماره " + Talayar.Dig(id) + " ثبت شد ✓";
         Nav.NavigateTo("/docs?doc=" + id, forceLoad: true);
     }

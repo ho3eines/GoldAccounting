@@ -30,6 +30,11 @@ builder.Services.AddScoped<ResourceRunner>(sp =>
 // HttpClient برای دریافت قیمت‌های آنلاین از سمت سرور
 builder.Services.AddScoped(sp => new HttpClient { Timeout = TimeSpan.FromSeconds(30) });
 
+// سرویس‌های جدید: رویدادها و پیامک
+builder.Services.AddScoped<EventService>();
+builder.Services.AddScoped<SmsService>();
+builder.Services.AddHostedService<SmsGreetingHostedService>();
+
 var app = builder.Build();
 
 // ── راه‌اندازی DB-First: ساخت دیتابیس + اجرای اسکریپت‌های TSQL اجرانشده ──

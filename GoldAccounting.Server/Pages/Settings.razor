@@ -2,6 +2,8 @@
 @inject AppDbContext Db
 @inject TalayarService Svc
 @inject HttpClient Http
+@inject IJSRuntime JS
+@inject SmsService Sms
 
 <PageTitle>تنظیمات</PageTitle>
 
@@ -58,12 +60,30 @@
         </div>
     </div>
 
+    <!-- پیامک -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+        <h3 class="font-bold text-gray-800">📲 تنظیمات پیامک (SMS)</h3>
+        <p class="text-xs text-gray-500">برای ارسال خودکار مانده حساب پس از ثبت سند، تبریک تولد/سالگرد و لینک گزارش‌ها. درگاه پیش‌فرض کاوه‌نگار (Kavenegar) است. بدون کلید معتبر، پیام‌ها فقط در «لاگ پیامک‌ها» ثبت می‌شوند (حالت تست).</p>
+        <label class="flex items-center gap-2 text-sm font-bold text-gray-700 bg-gray-50 rounded-xl p-3 cursor-pointer">
+            <input type="checkbox" @bind="smsEnabled" class="w-4 h-4 accent-amber-600" />
+            فعال‌بودن ارسال پیامک
+        </label>
+        <input @bind="smsApiKey" placeholder="کلید API (مثلاً کاوه‌نگار)" class="w-full border rounded-xl p-3 text-sm font-mono" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input @bind="smsSender" placeholder="شمارهٔ ارسال‌کننده (مثلاً 10004346)" class="w-full border rounded-xl p-3 text-sm" dir="ltr" />
+            <input @bind="smsBaseUrl" placeholder="آدرس درگاه (اختیاری)" class="w-full border rounded-xl p-3 text-sm font-mono" dir="ltr" />
+        </div>
+        <button @onclick="SaveSms" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ذخیره تنظیمات پیامک</button>
+        <a href="/smss" class="inline-block text-xs font-bold text-blue-600 hover:text-blue-800">📋 مشاهدهٔ لاگ پیامک‌ها ←</a>
+    </div>
+
     <!-- پشتیبان‌گیری -->
     <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
         <h3 class="font-bold text-gray-800">پشتیبان‌گیری و بازیابی</h3>
         <p class="text-xs text-gray-500">از همهٔ داده‌ها (فاکتورها، اسناد، مشتریان، اجناس، اتیکت‌ها، چک‌ها، بانک‌ها، نرخ‌ها و تراکنش‌ها) فایل بکاپ JSON ساخته می‌شود. بازیابی، داده‌های فعلی را جایگزین می‌کند. فرمت با بکاپ اندروید سازگار است.</p>
         <div class="flex flex-col md:flex-row gap-3 items-center">
             <a href="/api/backup/download" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm text-center">⬆ ایجاد فایل بکاپ</a>
+            <button @onclick="ShareBackup" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm text-center">📤 اشتراک بکاپ</button>
             <label class="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer border border-dashed border-gray-300">
                 ⬇ بازیابی از فایل (JSON)
                 <InputFile OnChange="OnRestore" accept=".json" hidden />
@@ -86,6 +106,8 @@
 
 @code {
     private string shopName = "", shopTel = "", taxPct = "", resub = "", apiUrl = "", apiMap = "";
+    private string smsApiKey = "", smsSender = "", smsBaseUrl = "";
+    private bool smsEnabled;
     private string msg = "", err = "";
     private bool restoring;
 
@@ -102,6 +124,10 @@
         resub = Svc.GetS("resub", "0");
         apiUrl = Svc.GetS("api_url", "https://api.tgju.org/v1/data/sana/json");
         apiMap = Svc.GetS("api_map", "");
+        smsEnabled = Svc.GetS("sms_enabled", "0") == "1";
+        smsApiKey = Svc.GetS("sms_api_key", "");
+        smsSender = Svc.GetS("sms_sender", "10004346");
+        smsBaseUrl = Svc.GetS("sms_base_url", "https://api.kavenegar.com/v1");
     }
 
     private void SaveShop()
@@ -153,6 +179,33 @@
         Svc.SetS("api_url", apiUrl);
         Svc.SetS("api_map", "");
         msg = "به پیش‌فرض برگشت ✓";
+    }
+
+    private void SaveSms()
+    {
+        Svc.SetS("sms_enabled", smsEnabled ? "1" : "0");
+        Svc.SetS("sms_api_key", smsApiKey.Trim());
+        Svc.SetS("sms_sender", smsSender.Trim());
+        Svc.SetS("sms_base_url", smsBaseUrl.Trim());
+        msg = "تنظیمات پیامک ذخیره شد ✓";
+    }
+
+    private async Task ShareBackup()
+    {
+        try
+        {
+            var resp = await Http.GetAsync("/api/backup/download");
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = await resp.Content.ReadAsStringAsync();
+                string name = "talayar-backup-" + Talayar.Jal.Today().Replace("/", "") + ".json";
+                await JS.InvokeVoidAsync("shareFile", name, json, "application/json");
+            }
+        }
+        catch (Exception ex)
+        {
+            err = "خطا در اشتراک بکاپ: " + ex.Message;
+        }
     }
 
     private async Task OnRestore(InputFileChangeEventArgs e)

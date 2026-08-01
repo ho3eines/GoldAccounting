@@ -1,0 +1,102 @@
+@page "/events"
+@inject AppDbContext Db
+
+<PageTitle>رویدادهای سیستم</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">🕹 رویدادهای سیستم</h2>
+        <p class="text-sm text-gray-500 mt-1">ورود و خروج کاربران، ثبت اسناد، فاکتورها، پشتیبان‌گیری و… — رویدادهای نسخهٔ ویندوز نیز از طریق API به همین‌جا ارسال می‌شوند.</p>
+    </div>
+
+    <!-- فیلتر -->
+    <div class="card-lux p-4 flex flex-col md:flex-row gap-3">
+        <select @bind="actionFilter" @bind:after="Load" class="flex-1 border rounded-xl p-2.5 text-sm">
+            <option value="">همهٔ رویدادها</option>
+            <option value="login">ورود کاربر</option>
+            <option value="login_failed">ورود ناموفق</option>
+            <option value="logout">خروج کاربر</option>
+            <option value="doc_create">ثبت سند</option>
+            <option value="doc_delete">حذف سند</option>
+            <option value="invoice_create">ثبت فاکتور</option>
+            <option value="backup_download">دانلود بکاپ</option>
+            <option value="backup_restore">بازیابی بکاپ</option>
+        </select>
+        <input @bind="q" @bind:event="oninput" placeholder="جستجو در جزئیات…" class="flex-1 border rounded-xl p-2.5 text-sm" />
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="table-responsive">
+            <table class="w-full text-right border-collapse min-w-[760px]">
+                <thead>
+                    <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                        <th class="p-3">زمان</th>
+                        <th class="p-3">کاربر</th>
+                        <th class="p-3">رویداد</th>
+                        <th class="p-3">هدف</th>
+                        <th class="p-3">جزئیات</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y text-sm text-gray-700">
+                    @foreach (var e in list)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 text-xs whitespace-nowrap">@Talayar.Dig(e.DateJ)</td>
+                            <td class="p-3 font-semibold text-xs">@e.Actor</td>
+                            <td class="p-3"><span class="badge @ActionColor(e.Action)">@ActionName(e.Action)</span></td>
+                            <td class="p-3 text-xs">@e.TargetType @(e.TargetId > 0 ? "#" + Talayar.Dig(e.TargetId) : "")</td>
+                            <td class="p-3 text-xs text-gray-500">@e.Details</td>
+                        </tr>
+                    }
+                    @if (!list.Any())
+                    {
+                        <tr><td colspan="5" class="p-10 text-center text-gray-400">رویدادی یافت نشد.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<EventLog> list = new();
+    private string actionFilter = "";
+    private string q = "";
+
+    protected override void OnInitialized() { Load(); }
+
+    private void Load()
+    {
+        var all = Db.Events.OrderByDescending(e => e.Ts).ThenByDescending(e => e.Id).Take(500).ToList();
+        if (actionFilter.Length > 0) all = all.Where(e => e.Action == actionFilter).ToList();
+        string sq = Talayar.En(q).Trim();
+        if (sq.Length > 0) all = all.Where(e => Talayar.En(e.Details + " " + e.Actor).Contains(sq)).ToList();
+        list = all;
+        StateHasChanged();
+    }
+
+    static string ActionName(string a) => a switch
+    {
+        "login" => "ورود کاربر",
+        "login_failed" => "ورود ناموفق",
+        "logout" => "خروج کاربر",
+        "doc_create" => "ثبت سند",
+        "doc_delete" => "حذف سند",
+        "invoice_create" => "ثبت فاکتور",
+        "backup_download" => "دانلود بکاپ",
+        "backup_restore" => "بازیابی بکاپ",
+        _ => a
+    };
+
+    static string ActionColor(string a) => a switch
+    {
+        "login" => "bg-green-100 text-green-700",
+        "login_failed" => "bg-red-100 text-red-700",
+        "logout" => "bg-gray-100 text-gray-600",
+        "doc_create" => "bg-blue-100 text-blue-700",
+        "invoice_create" => "bg-amber-100 text-amber-800",
+        "backup_download" => "bg-purple-100 text-purple-700",
+        "backup_restore" => "bg-purple-100 text-purple-700",
+        _ => "bg-gray-100 text-gray-600"
+    };
+}

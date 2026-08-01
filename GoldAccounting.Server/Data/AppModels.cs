@@ -43,6 +43,7 @@ namespace GoldAccounting.Server.Data
         public string DateJ { get; set; } = "";
         public string Descr { get; set; } = "";
         public long UpdTs { get; set; }
+        public int BranchId { get; set; }
         public List<DocRow> Rows { get; set; } = new();
     }
 
@@ -83,6 +84,7 @@ namespace GoldAccounting.Server.Data
         public string Rfid { get; set; } = "";
         public long UpdatedTs { get; set; }
         public long Cts { get; set; }
+        public int BranchId { get; set; }
         public string Status { get; set; } = "stock"; // stock | sold | out
     }
 }
@@ -117,6 +119,51 @@ namespace GoldAccounting.Server.Data
         public string Note { get; set; } = "";
         public string Status { get; set; } = "new"; // new / contacted / done / cancelled
         public long Cts { get; set; }
+        public string DateJ { get; set; } = "";
+    }
+}
+
+namespace GoldAccounting.Server.Data
+{
+    // ---------- شعبه‌ها ----------
+    public class Branch
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+        public long Cts { get; set; }
+    }
+
+    // ---------- رویدادهای سیستم (لاگ) ----------
+    public class EventLog
+    {
+        [Key]
+        public int Id { get; set; }
+        public long Ts { get; set; }
+        public string DateJ { get; set; } = "";
+        public string Actor { get; set; } = "";
+        public string Action { get; set; } = "";
+        public string TargetType { get; set; } = "";
+        public int TargetId { get; set; }
+        public string Details { get; set; } = "";
+        public int BranchId { get; set; }
+    }
+
+    // ---------- لاگ پیامک‌ها ----------
+    public class SmsLog
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Phone { get; set; } = "";
+        public string Kind { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string Status { get; set; } = "pending";
+        public string Error { get; set; } = "";
+        public long Ts { get; set; }
         public string DateJ { get; set; } = "";
     }
 }

@@ -1,6 +1,8 @@
 @page "/docs"
 @inject AppDbContext Db
 @inject TalayarService Svc
+@inject EventService Events
+@inject IJSRuntime JS
 
 <PageTitle>دفتر اسناد</PageTitle>
 
@@ -19,7 +21,18 @@
     }
 
     <div class="bg-white rounded-2xl shadow-sm border p-5 space-y-3">
-        <input @bind="q" @bind:event="oninput" placeholder="استعلام: شماره سند، تاریخ (۱۴۰۵/…)، بخشی از شرح یا نام مشتری…" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+        <div class="flex flex-col md:flex-row gap-2">
+            <input @bind="q" @bind:event="oninput" placeholder="استعلام: شماره سند، تاریخ (۱۴۰۵/…)، بخشی از شرح یا نام مشتری…" class="flex-1 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            <select @bind="branchId" @bind:after="Load" class="border rounded-xl p-3 text-sm">
+                <option value="0">همهٔ شعب</option>
+                <option value="-1">شعبه اصلی</option>
+                @foreach (var b in Db.Branches.OrderBy(b => b.Code))
+                {
+                    <option value="@b.Id">@b.Name</option>
+                }
+            </select>
+            <button @onclick="DownloadReport" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap">⬇ گزارش آفلاین</button>
+        </div>
         <div class="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
             @for (int i = 0; i < 2; i++)
             {
@@ -87,6 +100,7 @@
     private string q = "";
     private int sortMode;
     private int confirmId;
+    private int branchId;
     private string msg = "";
 
     [SupplyParameterFromQuery(Name = "doc")]
@@ -99,7 +113,10 @@
 
     private void Load()
     {
-        var all = Db.Docs.ToList();
+        var qry = Db.Docs.AsQueryable();
+        if (branchId == -1) qry = qry.Where(d => d.BranchId == 0);
+        else if (branchId > 0) qry = qry.Where(d => d.BranchId == branchId);
+        var all = qry.ToList();
         string sq = Talayar.En(q).Trim();
         if (sq.Length > 0)
         {
@@ -121,9 +138,24 @@
 
     private void DoDelete()
     {
+        var doc = Db.Docs.FirstOrDefault(d => d.Id == confirmId);
         Svc.DeleteDoc(confirmId);
+        Events.LogDoc(confirmId, "delete", doc != null ? doc.Descr : "حذف سند " + confirmId, "admin", doc?.BranchId ?? 0);
         msg = "سند حذف شد ✓";
         confirmId = 0;
         Load();
+    }
+
+    private async Task DownloadReport()
+    {
+        var rows = Db.DocRows.ToList();
+        string branchName = branchId switch
+        {
+            0 => "همهٔ شعب",
+            -1 => "شعبه اصلی",
+            _ => Db.Branches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "—"
+        };
+        var html = ReportHtml.DocsReport(docs, rows, branchName);
+        await JS.InvokeVoidAsync("downloadText", "talayar-docs-" + Talayar.Jal.Today().Replace("/", "") + ".html", html, "text/html");
     }
 }
