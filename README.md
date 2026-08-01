@@ -158,8 +158,11 @@
 فایل APK آماده در پوشهٔ [`publish/`](publish) قرار دارد:
 
 ```
-publish/Talayar-GoldAccounting-v4.0.apk
+publish/Talayar-GoldAccounting-v4.1.apk   ← آخرین نسخه (با راهنمای کامل ۲۹ بخشی داخل برنامه)
+publish/Talayar-GoldAccounting-v4.0.apk   (نسخهٔ قبلی)
 ```
+
+> کلید امضای ۴٫۱ در `publish/gold.keystore` (رمز goldpass) ذخیره شده است.
 
 کافی است آن را روی گوشی اندرویدی (Android 7 به بالا) کپی و نصب کنید (گزینهٔ «نصب از منابع ناشناخته» را اجازه دهید).
 
