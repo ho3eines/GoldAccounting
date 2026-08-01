@@ -9,13 +9,35 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>طلایار — سیستم جامع حسابداری طلا، فروش آنلاین و همگام‌سازی ابری</title>
+    <meta name="description" content="سیستم جامع حسابداری طلافروشی: فاکتور، اسناد، صندوق، انبار، اتیکت، چک و گزارش‌ها — نسخهٔ وب + اندروید" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0B0F16" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="طلایار" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+
     <base href="~/" />
     <link href="css/site.css" rel="stylesheet" />
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans">
     <component type="typeof(App)" render-mode="ServerPrerendered" />
+
+    <!-- نوار نصب PWA -->
+    <div id="pwa-install-bar" class="hidden fixed bottom-20 md:bottom-4 inset-x-4 md:inset-x-auto md:left-4 md:right-auto z-[100] md:max-w-sm bg-slate-900/95 backdrop-blur text-white rounded-2xl shadow-2xl border border-amber-500/30 p-4 flex items-center gap-3">
+        <img src="/icons/icon-192.png" alt="طلایار" class="w-11 h-11 rounded-xl" />
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold">نصب اپلیکیشن طلایار</p>
+            <p class="text-[11px] text-slate-300 truncate">دسترسی سریع مثل یک اپ واقعی</p>
+        </div>
+        <button id="pwa-install-btn" class="bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">نصب</button>
+    </div>
 
     <div id="blazor-error-ui">
         <environment include="Staging,Production">
@@ -29,5 +51,6 @@
     </div>
 
     <script src="_framework/blazor.server.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>

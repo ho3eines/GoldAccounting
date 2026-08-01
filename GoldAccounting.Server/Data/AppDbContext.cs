@@ -31,6 +31,7 @@ namespace GoldAccounting.Server.Data
         public DbSet<CustomerTx> CustomerTxs { get; set; }
         public DbSet<Etiket> Etikets { get; set; }
         public DbSet<MarketPrice> MarketPrices { get; set; }
+        public DbSet<ResourceLog> ResourceLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

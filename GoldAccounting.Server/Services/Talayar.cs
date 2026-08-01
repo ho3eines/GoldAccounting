@@ -222,7 +222,7 @@ namespace GoldAccounting.Server.Services
             }
 
             public static string MonthPrefix(string? dateJ) =>
-                dateJ != null && dateJ.Length >= 7 ? dateJ.Substring(0, 7) : dateJ;
+                dateJ != null && dateJ.Length >= 7 ? dateJ.Substring(0, 7) : (dateJ ?? "");
             public static string ThisMonth() => MonthPrefix(Today());
 
             /// <summary>اعتبارسنجی تاریخ شمسی</summary>

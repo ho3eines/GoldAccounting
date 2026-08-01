@@ -1,0 +1,49 @@
+{
+  "id": "/",
+  "name": "طلایار — حسابداری طلافروشی",
+  "short_name": "طلایار",
+  "description": "سیستم جامع حسابداری طلافروشی — فاکتور، اسناد، صندوق، انبار و گزارش‌ها",
+  "dir": "rtl",
+  "lang": "fa",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B0F16",
+  "theme_color": "#0B0F16",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "فاکتور فروش جدید",
+      "short_name": "فاکتور جدید",
+      "url": "/invoices/new",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "ثبت سند جدید",
+      "short_name": "سند جدید",
+      "url": "/docs/new",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "نرخ روز طلا",
+      "short_name": "نرخ طلا",
+      "url": "/rates",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

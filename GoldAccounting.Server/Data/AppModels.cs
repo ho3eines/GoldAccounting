@@ -86,3 +86,18 @@ namespace GoldAccounting.Server.Data
         public string Status { get; set; } = "stock"; // stock | sold | out
     }
 }
+
+namespace GoldAccounting.Server.Data
+{
+    // ---------- جدول ثبت اسکریپت‌های TSQL (DB-First Resource Runner) ----------
+    public class ResourceLog
+    {
+        [Key]
+        public int Id { get; set; }
+        public string FileName { get; set; } = "";
+        public bool Success { get; set; }
+        public DateTime ExecuteTime { get; set; }
+        public int ExecuteMs { get; set; }
+        public string? ErrorText { get; set; }
+    }
+}

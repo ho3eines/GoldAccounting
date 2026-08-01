@@ -865,8 +865,11 @@ namespace GoldAccounting.Server.Services
         }
         public (long cash, long gold) CustomerSumsUpTo(int cid, string maxDate)
         {
-            long cash = db.CustomerTxs.Where(c => c.Cid == cid && string.Compare(c.DateJ, maxDate) <= 0).Sum(c => (long?)c.Cash) ?? 0;
-            long gold = db.CustomerTxs.Where(c => c.Cid == cid && string.Compare(c.DateJ, maxDate) <= 0).Sum(c => (long?)c.Goldmw) ?? 0;
+            // مقایسهٔ تاریخ شمسی (رشته) — در حافظه انجام می‌شود تا با SQL Server سازگار باشد
+            var list = db.CustomerTxs.Where(c => c.Cid == cid).ToList()
+                .Where(c => string.Compare(c.DateJ, maxDate) <= 0).ToList();
+            long cash = list.Sum(c => c.Cash);
+            long gold = list.Sum(c => c.Goldmw);
             return (cash, gold);
         }
 

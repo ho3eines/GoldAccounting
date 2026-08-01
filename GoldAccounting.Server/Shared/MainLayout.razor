@@ -3,21 +3,25 @@
 
 <div class="min-h-screen flex flex-col md:flex-row bg-gray-100">
     <!-- Mobile Header -->
-    <div class="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
+    <div class="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center shadow-md sticky top-0 z-40">
         <div class="flex items-center space-x-2 space-x-reverse">
-            <span class="text-amber-400 font-bold text-lg">🪙 طلایار ابری</span>
+            <img src="/icons/icon-192.png" alt="طلایار" class="w-8 h-8 rounded-lg" />
+            <span class="text-amber-400 font-bold text-lg">طلایار ابری</span>
         </div>
-        <button @onclick="ToggleSidebar" class="p-2 text-gray-300 hover:text-white focus:outline-none">
+        <button data-sidebar-toggle @onclick="ToggleSidebar" class="p-2 text-gray-300 hover:text-white focus:outline-none">
             ☰
         </button>
     </div>
 
-    <!-- Sidebar (Responsive Drawer) -->
-    <div class="@(sidebarOpen ? "block" : "hidden") md:block w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-lg z-50 fixed md:static inset-0">
+    <!-- Sidebar (Desktop sticky + Mobile Drawer) -->
+    <div class="@(sidebarOpen ? "block" : "hidden") md:block w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-lg z-50 fixed md:sticky md:top-0 md:h-screen inset-0 md:inset-auto sidebar-desktop">
         <div class="p-6 border-b border-slate-800 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold text-amber-400">🪙 طلایار ابری و جامع</h1>
-                <p class="text-xs text-slate-400 mt-1">نسخه حرفه‌ای وب و موبایل</p>
+            <div class="flex items-center gap-3">
+                <img src="/icons/icon-192.png" alt="طلایار" class="w-11 h-11 rounded-xl shadow-lg shadow-amber-500/20" />
+                <div>
+                    <h1 class="text-lg font-bold text-amber-400 leading-tight">🪙 طلایار جامع</h1>
+                    <p class="text-[10px] text-slate-400 mt-0.5">نسخه حرفه‌ای وب و موبایل</p>
+                </div>
             </div>
             <button @onclick="ToggleSidebar" class="md:hidden text-gray-400 hover:text-white text-xl">✕</button>
         </div>
@@ -88,6 +92,9 @@
             <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="onlineshop">
                 <span class="ml-3">🛒</span> فروشگاه آنلاین
             </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="resources">
+                <span class="ml-3">🗃</span> اسکریپت‌های TSQL
+            </NavLink>
             <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="syncmanager">
                 <span class="ml-3">🔄</span> همگام‌سازی اندروید
             </NavLink>
@@ -97,17 +104,18 @@
         </nav>
         <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
             <p>نرخ روز: @(rate > 0 ? Talayar.Money(rate) + " تومان" : "ثبت نشده")</p>
-            <p>همگام‌سازی دوطرفه با اندروید ✓</p>
+            <p>SQL Server • DB-First • PWA ✓</p>
         </div>
     </div>
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col min-w-0">
-        <header class="bg-white shadow-sm h-16 hidden md:flex items-center px-6 justify-between border-b">
+        <header class="bg-white shadow-sm h-16 hidden md:flex items-center px-6 justify-between border-b sticky top-0 z-30">
             <div class="flex items-center space-x-4 space-x-reverse">
                 <span class="text-sm font-semibold text-gray-700">سامانه مدیریت جامع طلا — هماهنگ با نرم‌افزار آفلاین اندروید</span>
             </div>
             <div class="flex items-center space-x-3 space-x-reverse">
+                <span class="hidden lg:inline-block text-xs text-gray-400" id="jalali-date"></span>
                 <span class="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold">🟢 متصل و همگام</span>
             </div>
         </header>
@@ -116,6 +124,25 @@
             @Body
         </main>
     </div>
+
+    <!-- Bottom Navigation (Mobile / PWA) -->
+    <nav class="bottom-nav md:hidden">
+        <NavLink href="" Match="NavLinkMatch.All">
+            <span class="bn-ic">📊</span> داشبورد
+        </NavLink>
+        <NavLink href="invoices/new">
+            <span class="bn-ic">🧾</span> فاکتور جدید
+        </NavLink>
+        <NavLink href="docs/new">
+            <span class="bn-ic">📜</span> سند جدید
+        </NavLink>
+        <NavLink href="customers">
+            <span class="bn-ic">👥</span> مشتریان
+        </NavLink>
+        <NavLink href="settings">
+            <span class="bn-ic">⚙️</span> تنظیمات
+        </NavLink>
+    </nav>
 </div>
 
 @code {

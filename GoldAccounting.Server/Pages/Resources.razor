@@ -1,0 +1,179 @@
+@page "/resources"
+@inject AppDbContext Db
+@inject ResourceRunner Runner
+@inject IWebHostEnvironment Env
+
+<PageTitle>اسکریپت‌های TSQL (DB-First)</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🗃 اسکریپت‌های TSQL (DB-First)</h2>
+            <p class="text-sm text-gray-500 mt-1">
+                اسکریپت‌های پوشهٔ <code class="bg-gray-100 px-1.5 py-0.5 rounded text-amber-700 font-mono text-xs">wwwroot/resources</code> با فرمت
+                <code class="bg-gray-100 px-1.5 py-0.5 rounded text-amber-700 font-mono text-xs">[DateTime]_[Create/alter]_[Tb/sp/fn]_[Name].sql</code>
+                یک‌بار اجرا شده و نتیجه در جدول <b>dbo.Resources</b> ثبت می‌شود.
+            </p>
+        </div>
+        <button @onclick="RunPending" disabled="@running" class="btn-gold text-sm disabled:opacity-60">
+            @(running ? "در حال اجرا…" : "⚡ اجرای اسکریپت‌های جدید")
+        </button>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold whitespace-pre-line">@err</div>
+    }
+
+    <!-- وضعیت فایل‌های پوشه -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">فایل‌های پوشه</p>
+            <p class="text-xl font-bold text-gray-800 mt-1">@Talayar.Dig(files.Count)</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">اجراشده (موفق)</p>
+            <p class="text-xl font-bold text-green-600 mt-1">@Talayar.Dig(okCount)</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">ناموفق</p>
+            <p class="text-xl font-bold text-red-500 mt-1">@Talayar.Dig(failCount)</p>
+        </div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border">
+            <p class="text-xs text-gray-500">در انتظار اجرا</p>
+            <p class="text-xl font-bold text-amber-600 mt-1">@Talayar.Dig(pendingCount)</p>
+        </div>
+    </div>
+
+    <!-- وضعیت فایل‌ها -->
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-800">وضعیت فایل‌های TSQL</h3>
+            <span class="text-xs text-gray-400">پوشه: wwwroot/resources</span>
+        </div>
+        <div class="divide-y">
+            @foreach (var f in files)
+            {
+                var log = logs.FirstOrDefault(l => l.FileName == f.Name);
+                <div class="p-4 flex items-center justify-between gap-3 hover:bg-gray-50">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-mono text-xs font-bold text-gray-800 truncate">@f.Name</p>
+                        @if (log != null)
+                        {
+                            <p class="text-[11px] text-gray-400 mt-0.5">
+                                اجرا: @Talayar.Dig(log.ExecuteTime.ToString("yyyy/MM/dd HH:mm")) • زمان: @Talayar.Dig(log.ExecuteMs) ms
+                            </p>
+                        }
+                    </div>
+                    @if (log == null)
+                    {
+                        <span class="badge bg-amber-100 text-amber-800">در انتظار</span>
+                    }
+                    else if (log.Success)
+                    {
+                        <span class="badge bg-green-100 text-green-700">✓ موفق</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-red-100 text-red-700" title="@log.ErrorText">✗ ناموفق</span>
+                    }
+                </div>
+            }
+            @if (!files.Any())
+            {
+                <p class="p-8 text-center text-gray-400 text-sm">هیچ فایل .sql در پوشه نیست.</p>
+            }
+        </div>
+    </div>
+
+    <!-- تاریخچهٔ اجراها -->
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50">
+            <h3 class="font-bold text-gray-800">تاریخچهٔ اجرا — جدول dbo.Resources</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="w-full text-right border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 text-xs text-gray-600 border-b">
+                        <th class="p-3">شناسه</th>
+                        <th class="p-3">FileName</th>
+                        <th class="p-3">Success</th>
+                        <th class="p-3">ExecuteTime</th>
+                        <th class="p-3">ExecuteMs</th>
+                        <th class="p-3">ErrorText</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y text-xs text-gray-700">
+                    @foreach (var l in logs.OrderByDescending(l => l.Id).Take(100))
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 font-bold text-amber-600">@Talayar.Dig(l.Id)</td>
+                            <td class="p-3 font-mono">@l.FileName</td>
+                            <td class="p-3">
+                                <span class="badge @(l.Success ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")">@(l.Success ? "true" : "false")</span>
+                            </td>
+                            <td class="p-3">@Talayar.Dig(l.ExecuteTime.ToString("yyyy/MM/dd HH:mm:ss"))</td>
+                            <td class="p-3">@Talayar.Dig(l.ExecuteMs)</td>
+                            <td class="p-3 text-red-500 max-w-xs truncate" title="@l.ErrorText">@(string.IsNullOrEmpty(l.ErrorText) ? "—" : l.ErrorText)</td>
+                        </tr>
+                    }
+                    @if (!logs.Any())
+                    {
+                        <tr><td colspan="6" class="p-8 text-center text-gray-400">هنوز اجرایی ثبت نشده است.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<FileInfo> files = new();
+    private List<ResourceLog> logs = new();
+    private string msg = "", err = "";
+    private bool running;
+    private int okCount, failCount, pendingCount;
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        var dir = Path.Combine(Env.WebRootPath, "resources");
+        files = Directory.Exists(dir)
+            ? Directory.GetFiles(dir, "*.sql").Select(f => new FileInfo(f)).OrderBy(f => f.Name).ToList()
+            : new List<FileInfo>();
+        logs = Db.ResourceLogs.OrderByDescending(l => l.Id).Take(200).ToList();
+
+        okCount = logs.Count(l => l.Success);
+        failCount = logs.Count(l => !l.Success);
+        pendingCount = files.Count(f => !logs.Any(l => l.FileName == f.Name));
+    }
+
+    private void RunPending()
+    {
+        running = true;
+        err = "";
+        msg = "";
+        try
+        {
+            Runner.RunPending();
+            msg = "بررسی و اجرای اسکریپت‌های جدید انجام شد ✓";
+        }
+        catch (Exception ex)
+        {
+            err = ex.Message;
+        }
+        finally
+        {
+            running = false;
+            Load();
+        }
+    }
+}
