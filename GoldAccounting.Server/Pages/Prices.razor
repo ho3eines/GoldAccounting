@@ -1,0 +1,241 @@
+@page "/prices"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject HttpClient Http
+
+<PageTitle>قیمت‌های بازار</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🌐 قیمت‌های بازار</h2>
+            <p class="text-sm text-gray-500 mt-1">دریافت مستقیم از API عمومی TGJU یا BrsApi + ویرایش دستی — نرخ دفتری طلای ۱۸ با دریافت موفق به‌روز می‌شود.</p>
+        </div>
+        <button @onclick="Fetch" disabled="@fetching" class="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">
+            @(fetching ? "در حال دریافت…" : "⬇ دریافت قیمت‌ها از اینترنت")
+        </button>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">منبع قیمت</span>
+            <b class="text-blue-700 font-mono text-xs">@ApiUrl</b>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">نرخ دفتری طلای ۱۸ (نرخ روز فاکتورها)</span>
+            <b class="text-amber-700">@(rate > 0 ? Talayar.MoneyT(rate) : "ثبت نشده")</b>
+        </div>
+        <p class="text-xs text-gray-400">با دریافت موفق قیمت، نرخ دفتری به‌صورت خودکار به‌روز می‌شود.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        @foreach (var k in KEYS)
+        {
+            var p = prices.FirstOrDefault(x => x.Key == k[0]);
+            <div class="bg-white rounded-2xl shadow-sm border p-5">
+                <div class="flex justify-between items-center">
+                    <p class="font-bold text-gray-800 text-sm">@k[1]</p>
+                    <b class="text-amber-700">@(p != null && p.Val > 0 ? Talayar.Money(p.Val) + (k[0] == "ons" ? " دلار" : " تومان") : "—")</b>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="text-xs text-gray-400">@(p != null ? "به‌روزرسانی: " + Talayar.Dig(Talayar.Jal.Of(p.Ts).Fa()) : "ثبت نشده")</span>
+                    <button @onclick="() => OpenEdit(k[0], k[1])" class="text-blue-600 hover:text-blue-800 text-xs font-bold">✎ ویرایش دستی</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (editKey != null)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">قیمت «@editName»</h3>
+            <input @bind="editVal" placeholder="قیمت به تومان" class="w-full border rounded-xl p-3 text-sm" />
+            <div class="flex gap-2">
+                <button @onclick="SaveEdit" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ثبت</button>
+                <button @onclick="() => editKey = null" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    static readonly string[][] KEYS = {
+        new[] { "gold18", "گرم طلای ۱۸ عیار" },
+        new[] { "mesghal", "مثقال طلای ۱۷ عیار" },
+        new[] { "gold24", "گرم طلای ۲۴ عیار" },
+        new[] { "ons", "انس جهانی طلا (دلار)" },
+        new[] { "silver", "نقره" },
+        new[] { "coin_imami", "سکه امامی" },
+        new[] { "coin_bahar", "سکه بهار آزادی" },
+        new[] { "coin_nim", "نیم سکه" },
+        new[] { "coin_rob", "ربع سکه" },
+        new[] { "coin_gerami", "سکه گرمی" },
+        new[] { "usd", "دلار" },
+        new[] { "eur", "یورو" },
+        new[] { "aed", "درهم امارات" },
+        new[] { "try_", "لیر ترکیه" },
+    };
+
+    private List<MarketPrice> prices = new();
+    private long rate;
+    private string msg = "", err = "";
+    private bool fetching;
+    private string ApiUrl => Svc.GetS("api_url", "https://api.tgju.org/v1/data/sana/json");
+    private string? editKey;
+    private string editName = "";
+    private string editVal = "";
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        prices = Db.MarketPrices.OrderByDescending(p => p.Ts).ToList();
+        rate = Svc.CurrentRate();
+    }
+
+    private async Task Fetch()
+    {
+        if (fetching) return;
+        fetching = true;
+        err = ""; msg = "";
+        try
+        {
+            string url = ApiUrl;
+            var json = await Http.GetStringAsync(url);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            int found = 0;
+            long g18 = 0;
+
+            // ساختار TGJU: data.prices.{symbol: {p: "..."}} — ساختار BrsApi: {status, data: {...}}
+            void ScanObject(System.Text.Json.JsonElement obj)
+            {
+                foreach (var p in obj.EnumerateObject())
+                {
+                    if (p.Value.ValueKind != JsonValueKind.Object) continue;
+                    if (p.Name == "prices" || p.Name == "data")
+                    {
+                        ScanObject(p.Value);
+                        continue;
+                    }
+                    string mapped = MapSymbol(p.Name);
+                    if (mapped == null) continue;
+                    long v = Extract(p.Value);
+                    if (v <= 0) continue;
+                    Db.MarketPrices.Add(new MarketPrice { Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(), Key = mapped, Val = v });
+                    if (mapped == "gold18") g18 = v;
+                    found++;
+                }
+            }
+            ScanObject(root);
+
+            if (found == 0)
+            {
+                err = "قیمتی از پاسخ استخراج نشد. آدرس API را در «تنظیمات» بررسی کنید یا قیمت را دستی وارد کنید.";
+            }
+            else
+            {
+                Db.SaveChanges();
+                msg = "قیمت‌ها به‌روز شد ✓" + (g18 > 0 ? " — نرخ دفتری طلای ۱۸ نیز ثبت شد." : "");
+                if (g18 > 0)
+                {
+                    Db.Rates.Add(new Rate { Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(), DateJ = Talayar.Jal.Today(), RateVal = g18 });
+                    Db.SaveChanges();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            err = "اتصال برقرار نشد: " + ex.Message + " — اینترنت را بررسی کنید یا قیمت را دستی وارد کنید.";
+        }
+        finally
+        {
+            fetching = false;
+            Load();
+        }
+    }
+
+    static string? MapSymbol(string raw)
+    {
+        string s = (raw ?? "").Trim().ToLowerInvariant();
+        if (s == "geram18") return "gold18";
+        if (s == "mesghal") return "mesghal";
+        if (s == "geram24") return "gold24";
+        if (s == "ons" || s == "ons_dollar") return "ons";
+        if (s == "silver") return "silver";
+        if (s == "sekee" || s == "sekee_emami" || s == "emami_sell") return "coin_imami";
+        if (s == "sekeb") return "coin_bahar";
+        if (s == "nim") return "coin_nim";
+        if (s == "rob") return "coin_rob";
+        if (s == "gerami") return "coin_gerami";
+        if (s == "price_dollar_rl") return "usd";
+        if (s == "price_eur") return "eur";
+        if (s == "price_aed") return "aed";
+        if (s == "price_try") return "try_";
+        if (s == "ir_gold_18k" || s == "gold_18k" || s == "18k") return "gold18";
+        if (s == "ir_gold_melted" || s == "gold_melted" || s == "melted") return "mesghal";
+        if (s == "ir_gold_24k" || s == "gold_24k" || s == "24k") return "gold24";
+        if (s == "xauusd" || s == "gold_ounce") return "ons";
+        if (s == "ir_coin_emami" || s == "coin_emami" || s == "emami") return "coin_imami";
+        if (s == "ir_coin_bahar" || s == "coin_bahar" || s == "bahar") return "coin_bahar";
+        if (s == "ir_coin_half" || s == "coin_half") return "coin_nim";
+        if (s == "ir_coin_quarter" || s == "coin_quarter") return "coin_rob";
+        if (s == "ir_coin_1g" || s == "coin_1g") return "coin_gerami";
+        if (s == "usd" || s == "us_dollar") return "usd";
+        if (s == "eur" || s == "euro") return "eur";
+        if (s == "aed" || s == "uae_dirham") return "aed";
+        if (s == "try" || s == "turkish_lira") return "try_";
+        if (s == "ir_silver") return "silver";
+        return null;
+    }
+
+    static long Extract(System.Text.Json.JsonElement o)
+    {
+        foreach (var c in new[] { "p", "price", "latest", "value", "l" })
+        {
+            if (o.ValueKind == JsonValueKind.Object && o.TryGetProperty(c, out var v))
+            {
+                string s = v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : v.ToString();
+                if (s.Length == 0) continue;
+                if (double.TryParse(s.Replace(",", ""), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d))
+                    return (long)Math.Round(d);
+            }
+        }
+        return 0;
+    }
+
+    private void OpenEdit(string key, string name)
+    {
+        editKey = key;
+        editName = name;
+        var p = prices.FirstOrDefault(x => x.Key == key);
+        editVal = p != null && p.Val > 0 ? p.Val.ToString() : "";
+    }
+
+    private void SaveEdit()
+    {
+        long v = Talayar.ParseMoney(editVal);
+        if (v <= 0) { err = "مقدار نامعتبر"; return; }
+        Db.MarketPrices.Add(new MarketPrice { Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(), Key = editKey!, Val = v });
+        if (editKey == "gold18")
+        {
+            Db.Rates.Add(new Rate { Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(), DateJ = Talayar.Jal.Today(), RateVal = v });
+        }
+        Db.SaveChanges();
+        msg = "ثبت شد ✓";
+        editKey = null;
+        Load();
+    }
+}

@@ -13,20 +13,32 @@ namespace GoldAccounting.Server.Data
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceLine> InvoiceLines { get; set; }
         public DbSet<CashTransaction> CashTransactions { get; set; }
-        public DbSet<GoldTransaction> GoldTransactions { get; set; }
+        public DbSet<GoldTransactionEntity> GoldTransactions { get; set; }
         public DbSet<AccountingVoucher> AccountingVouchers { get; set; }
         public DbSet<VoucherRow> VoucherRows { get; set; }
         public DbSet<SyncLog> SyncLogs { get; set; }
         public DbSet<UserAccount> UserAccounts { get; set; }
         public DbSet<CheckTransaction> CheckTransactions { get; set; }
         public DbSet<BankTransaction> BankTransactions { get; set; }
-        public DbSet<GoldTransactionEntity> GoldTransactions { get; set; }
         public DbSet<AssetLedgerEntity> AssetLedgers { get; set; }
+
+        // مدل کامل نسخه ۴ (هماهنگ با اندروید)
+        public DbSet<Setting> Settings { get; set; }
+        public DbSet<Rate> Rates { get; set; }
+        public DbSet<Def> Defs { get; set; }
+        public DbSet<Doc> Docs { get; set; }
+        public DbSet<DocRow> DocRows { get; set; }
+        public DbSet<CustomerTx> CustomerTxs { get; set; }
+        public DbSet<Etiket> Etikets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<SyncLog>().HasIndex(s => s.TransferCode).IsUnique();
+            modelBuilder.Entity<CustomerTx>().HasIndex(c => c.Cid);
+            modelBuilder.Entity<DocRow>().HasIndex(d => d.DocId);
+            modelBuilder.Entity<Def>().HasIndex(d => d.Kind);
+            modelBuilder.Entity<AssetLedgerEntity>().HasIndex(a => new { a.Scope, a.Asset });
         }
     }
 
@@ -110,20 +122,6 @@ namespace GoldAccounting.Server.Data
         public long Amount { get; set; }
         public string Descr { get; set; } = string.Empty;
         public int Iid { get; set; }
-    }
-
-    public class GoldTransaction
-    {
-        [Key]
-        public int Id { get; set; }
-        public long Ts { get; set; }
-        public string DateJ { get; set; } = string.Empty;
-        public string Kind { get; set; } = "in"; // in / out
-        public long Wmw { get; set; }
-        public int Karat { get; set; }
-        public string Descr { get; set; } = string.Empty;
-        public int Cid { get; set; }
-        public int DocId { get; set; }
     }
 
     // سند حسابداری اتوماتیک (Double-Entry Accounting Vouchers)

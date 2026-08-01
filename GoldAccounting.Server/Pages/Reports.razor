@@ -1,0 +1,87 @@
+@page "/reports"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>گزارش‌ها</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">📊 گزارش‌های مالی</h2>
+        <p class="text-sm text-gray-500 mt-1">فروش امروز/ماه شمسی، اجرت، مالیات، ارزش روز موجودی و بدهی‌ها.</p>
+    </div>
+
+    @{
+        long rate = Svc.CurrentRate();
+        long[] today = Svc.SalesStats(Talayar.Jal.Today());
+        long[] month = Svc.SalesStats(Talayar.Jal.ThisMonth());
+        var stock = Svc.ItemsStock();
+        var gold = Svc.GoldBalance();
+        var sp = Svc.CustomerDebtSplit();
+        long bal = Svc.CashBalance();
+    }
+
+    <!-- فروش -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <div class="flex justify-between items-center">
+            <h3 class="font-bold text-gray-800">🧾 فروش</h3>
+            <div class="flex gap-4 text-xs text-gray-500">
+                <span>امروز (@Talayar.Dig(Talayar.Jal.Today()))</span>
+                <span>این ماه شمسی</span>
+            </div>
+        </div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">تعداد فاکتور</span><b>@Talayar.Dig(today[0]) | @Talayar.Dig(month[0])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مبلغ فروش</span><b class="text-amber-700">@Talayar.Money(today[1]) | @Talayar.Money(month[1])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">اجرت دریافتی</span><b class="text-green-600">@Talayar.Money(today[2]) | @Talayar.Money(month[2])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مالیات جمع‌آوری‌شده</span><b>@Talayar.Money(today[3]) | @Talayar.Money(month[3])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">نقد دریافت‌شده</span><b>@Talayar.Money(today[4]) | @Talayar.Money(month[4])</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">مانده به حساب مشتریان</span><b class="text-amber-700">@Talayar.Money(today[5]) | @Talayar.Money(month[5])</b></div>
+    </div>
+
+    <!-- موجودی -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">📦 موجودی</h3>
+        @{
+            long stockDayVal = 0, stockWage = 0;
+            foreach (var it in Db.Items.Where(i => i.Status == "stock").ToList())
+            {
+                long gv = (long)Math.Round(Talayar.Equiv750(it.Wmw, it.Karat) * rate / 1000.0);
+                long wv = TalayarService.CalcWage(gv, it.Wmw, it.WType, it.WVal);
+                stockDayVal += gv + wv + it.StoneVal;
+                stockWage += wv;
+            }
+        }
+        <div class="flex justify-between text-sm"><span class="text-gray-500">اجناس در انبار</span><b>@Talayar.Dig(stock.count) قلم • @Talayar.Mw(stock.wmw) گرم</b></div>
+        @if (rate > 0)
+        {
+            <div class="flex justify-between text-sm"><span class="text-gray-500">ارزش روز اجناس (با اجرت)</span><b class="text-amber-700">@Talayar.Money(stockDayVal) تومان</b></div>
+        }
+        <div class="flex justify-between text-sm"><span class="text-gray-500">طلای آب‌شده (۱۸ معادل)</span><b>@Talayar.Mw(gold.eq) گرم • خام @Talayar.Mw(gold.raw) گرم</b></div>
+        @if (rate > 0)
+        {
+            <div class="flex justify-between text-sm"><span class="text-gray-500">ارزش روز آب‌شده</span><b>@Talayar.Money((long)Math.Round(gold.eq * rate / 1000.0)) تومان</b></div>
+        }
+    </div>
+
+    <!-- نقد و حساب‌ها -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">💰 نقدینگی و حساب‌ها</h3>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">تراز صندوق</span><b class="@(bal >= 0 ? "text-green-600" : "text-red-500")">@Talayar.Money(bal) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بدهی نقدی مشتریان</span><b class="text-amber-700">@Talayar.Money(sp.debtC) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بستانکاری نقدی</span><b class="text-green-600">@Talayar.Money(sp.credC) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بدهی طلایی مشتریان</span><b class="text-amber-700">@(sp.debtG != 0 ? Talayar.Mw(sp.debtG) + " گرم" : "—")</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">بستانکاری طلایی</span><b>@(sp.credG != 0 ? Talayar.Mw(sp.credG) + " گرم" : "—")</b></div>
+    </div>
+
+    <!-- گردش کلی -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2">
+        <h3 class="font-bold text-gray-800">📈 گردش از ابتدا</h3>
+        @{
+            var invs = Db.Invoices.ToList();
+            long invN = invs.Count, invSum = invs.Sum(i => i.Total), invWage = invs.Sum(i => i.Wage);
+            long goldIn = Db.GoldTransactions.Where(g => g.Kind == "in").Sum(g => (long?)g.Wmw) ?? 0;
+        }
+        <div class="flex justify-between text-sm"><span class="text-gray-500">کل فاکتورها</span><b>@Talayar.Dig(invN) فاکتور • @Talayar.Money(invSum) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">کل اجرت‌های دریافتی</span><b class="text-green-600">@Talayar.Money(invWage) تومان</b></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-500">کل طلای خریداری/دریافت‌شده</span><b>@Talayar.Mw(goldIn) گرم</b></div>
+    </div>
+</div>

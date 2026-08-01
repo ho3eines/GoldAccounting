@@ -1,0 +1,165 @@
+@page "/invoices/{id:int}"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>فاکتور @Talayar.Dig(id)</PageTitle>
+
+<div class="space-y-6 max-w-3xl mx-auto">
+    @if (inv != null)
+    {
+        <div class="flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-800">🧾 فاکتور فروش طلا — شماره @Talayar.Dig(inv.Id)</h2>
+            <a href="/invoices" class="text-sm font-bold text-amber-700 hover:text-amber-800">← بازگشت</a>
+        </div>
+
+        @if (msg.Length > 0)
+        {
+            <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+        }
+
+        <!-- سربرگ -->
+        <div class="bg-gradient-to-br from-slate-900 to-amber-900 text-white p-6 rounded-2xl shadow-xl space-y-2">
+            @if (shop.Length > 0)
+            {
+                <p class="text-amber-200 text-sm font-bold">@shop @(shopTel.Length > 0 ? "• " + Talayar.Dig(shopTel) : "")</p>
+            }
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div><span class="text-amber-200/80">شماره:</span> <b>@Talayar.Dig(inv.Id)</b></div>
+                <div><span class="text-amber-200/80">تاریخ:</span> <b>@Talayar.Dig(inv.DateJ)</b></div>
+                <div><span class="text-amber-200/80">مشتری:</span> <b>@(inv.Cname.Length > 0 ? inv.Cname : "عابر")</b></div>
+                <div><span class="text-amber-200/80">نرخ روز:</span> <b>@Talayar.Money(inv.Rate) تومان</b></div>
+            </div>
+        </div>
+
+        <!-- اقلام -->
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <div class="px-6 py-4 border-b bg-gray-50"><h3 class="font-bold text-gray-800">اقلام</h3></div>
+            <div class="divide-y">
+                @foreach (var l in lines)
+                {
+                    <div class="p-5 space-y-2">
+                        <div class="flex justify-between">
+                            <p class="font-bold text-gray-800 text-sm">@(Talayar.Dig(lines.IndexOf(l) + 1) + ". ")@l.Title</p>
+                            <p class="text-xs text-gray-500">@Talayar.KaratName(l.Karat) • @Talayar.Mw(l.Wmw) گرم × @Talayar.Money(l.Unit)</p>
+                        </div>
+                        <div class="flex gap-3 text-xs text-gray-600">
+                            <span>طلا: <b>@Talayar.Money(l.GoldVal)</b></span>
+                            @if (l.Wage > 0) { <span>اجرت: <b>@Talayar.Money(l.Wage)</b></span> }
+                            @if (l.Stone > 0) { <span>سنگ: <b>@Talayar.Money(l.Stone)</b></span> }
+                            @if (l.Tax > 0) { <span>مالیات: <b>@Talayar.Money(l.Tax)</b></span> }
+                            <span class="text-amber-700 font-bold">جمع: @Talayar.Money(l.Total)</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- تسویه -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-500">جمع کل فاکتور</span><b class="text-amber-700">@Talayar.Money(inv.Total) تومان</b></div>
+            <div class="flex justify-between"><span class="text-gray-500">پرداخت نقدی</span><b>@Talayar.Money(inv.Pcash) تومان</b></div>
+            @if (inv.PgoldMw > 0)
+            {
+                <div class="flex justify-between"><span class="text-gray-500">طلا دریافتی</span><b>@Talayar.Mw(inv.PgoldMw) گرم @(inv.PgoldKarat > 0 ? Talayar.KaratName(inv.PgoldKarat) : "") ≈ @Talayar.Money(inv.PgoldVal) تومان</b></div>
+            }
+            <div class="flex justify-between">
+                <span class="text-gray-500">وضعیت</span>
+                <b class="@(inv.Debt > 0 ? "text-amber-600" : inv.Debt < 0 ? "text-green-600" : "text-green-600")">
+                    @(inv.Debt > 0 ? "مانده (بدهی مشتری): " + Talayar.Money(inv.Debt) + " تومان" : inv.Debt < 0 ? "اضافه‌پرداخت: " + Talayar.Money(-inv.Debt) + " تومان" : "تسویه کامل ✓")
+                </b>
+            </div>
+            @if (inv.Note.Length > 0 && inv.Note != "اختیاری")
+            {
+                <div class="flex justify-between"><span class="text-gray-500">یادداشت</span><b>@inv.Note</b></div>
+            }
+        </div>
+
+        <!-- عملیات -->
+        <div class="flex flex-wrap gap-3">
+            <a href="/print/invoice/@inv.Id" target="_blank" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-5 py-2.5 rounded-xl font-bold text-sm">🖨 چاپ فاکتور</a>
+            <button @onclick="CopyText" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm">📋 کپی متن فاکتور</button>
+            <button @onclick="Void" class="bg-red-50 hover:bg-red-100 text-red-700 px-5 py-2.5 rounded-xl font-bold text-sm">🗑 ابطال فاکتور (سند معکوس)</button>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white p-12 text-center rounded-2xl shadow-sm border">
+            <p class="text-gray-500 font-bold">فاکتور یافت نشد.</p>
+            <a href="/invoices" class="inline-block mt-4 text-amber-700 font-bold text-sm">← بازگشت به فاکتورها</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Invoice? inv;
+    private List<InvoiceLine> lines = new();
+    private string shop = "", shopTel = "";
+    private string msg = "";
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        inv = Db.Invoices.FirstOrDefault(i => i.Id == Id);
+        if (inv != null) lines = Db.InvoiceLines.Where(l => l.Iid == Id).OrderBy(l => l.Id).ToList();
+        shop = Svc.GetS("shop", "");
+        shopTel = Svc.GetS("shopTel", "");
+    }
+
+    private string BuildText()
+    {
+        if (inv == null) return "";
+        var sb = new System.Text.StringBuilder();
+        sb.Append("🧾 فاکتور فروش طلا");
+        if (shop.Length > 0) sb.Append(" — ").Append(shop);
+        sb.Append("\nشماره: ").Append(Talayar.Dig(inv.Id));
+        sb.Append("\nتاریخ: ").Append(Talayar.Dig(inv.DateJ));
+        sb.Append("\nمشتری: ").Append(inv.Cname.Length > 0 ? inv.Cname : "عابر");
+        sb.Append("\nنرخ روز: ").Append(Talayar.Money(inv.Rate)).Append(" تومان");
+        sb.Append("\n──────────────");
+        int i = 1;
+        foreach (var l in lines)
+        {
+            sb.Append("\n").Append(Talayar.Dig(i)).Append(") ").Append(l.Title);
+            sb.Append(" — ").Append(Talayar.KaratName(l.Karat));
+            sb.Append(" ").Append(Talayar.Mw(l.Wmw)).Append(" گرم");
+            sb.Append("\n   طلا: ").Append(Talayar.Money(l.GoldVal));
+            if (l.Wage > 0) sb.Append("  اجرت: ").Append(Talayar.Money(l.Wage));
+            if (l.Stone > 0) sb.Append("  سنگ: ").Append(Talayar.Money(l.Stone));
+            if (l.Tax > 0) sb.Append("  مالیات: ").Append(Talayar.Money(l.Tax));
+            sb.Append("\n   جمع: ").Append(Talayar.Money(l.Total)).Append(" تومان");
+            i++;
+        }
+        sb.Append("\n──────────────");
+        sb.Append("\nجمع کل: ").Append(Talayar.Money(inv.Total)).Append(" تومان");
+        sb.Append("\nپرداخت نقدی: ").Append(Talayar.Money(inv.Pcash)).Append(" تومان");
+        if (inv.PgoldMw > 0)
+            sb.Append("\nطلا دریافتی: ").Append(Talayar.Mw(inv.PgoldMw)).Append(" گرم ≈ ").Append(Talayar.Money(inv.PgoldVal)).Append(" تومان");
+        if (inv.Debt > 0) sb.Append("\nمانده (بدهی): ").Append(Talayar.Money(inv.Debt)).Append(" تومان");
+        else if (inv.Debt < 0) sb.Append("\nاضافه‌پرداخت: ").Append(Talayar.Money(-inv.Debt)).Append(" تومان");
+        else sb.Append("\nتسویه کامل ✓");
+        if (inv.Note.Length > 0 && inv.Note != "اختیاری") sb.Append("\nیادداشت: ").Append(inv.Note);
+        sb.Append("\n— طلایار، حسابداری طلافروشی");
+        return sb.ToString();
+    }
+
+    private async Task CopyText()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", BuildText());
+        msg = "متن فاکتور کپی شد ✓";
+    }
+
+    private void Void()
+    {
+        Svc.VoidInvoice(Id);
+        msg = "فاکتور باطل شد (سند معکوس ثبت گردید) ✓";
+        Nav.NavigateTo("/invoices", forceLoad: true);
+    }
+}

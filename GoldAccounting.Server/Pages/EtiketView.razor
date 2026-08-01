@@ -1,0 +1,128 @@
+@page "/etikets/{id:int}"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject NavigationManager Nav
+
+<PageTitle>اتیکت @(et != null ? Talayar.Dig(et.Code) : "")</PageTitle>
+
+<div class="space-y-6 max-w-3xl mx-auto">
+    @if (et != null)
+    {
+        <div class="flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-800">🏷 اتیکت @Talayar.Dig(et.Code)</h2>
+            <a href="/etikets" class="text-sm font-bold text-amber-700 hover:text-amber-800">← بازگشت</a>
+        </div>
+
+        @if (msg.Length > 0)
+        {
+            <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+        }
+
+        <!-- سربرگ -->
+        <div class="bg-gradient-to-br from-slate-900 to-amber-900 text-white p-6 rounded-2xl shadow-xl">
+            <h3 class="text-2xl font-bold text-amber-400">@(et.Name.Length > 0 ? et.Name : "بدون نام")</h3>
+            <div class="flex flex-wrap gap-2 mt-3">
+                <span class="bg-amber-500 text-slate-900 text-xs px-3 py-1 rounded-full font-bold">کد کار @Talayar.Dig(et.Code)</span>
+                @if (et.Status != "stock")
+                {
+                    <span class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold">@StatusName(et.Status)</span>
+                }
+                @if (et.Rfid.Length > 0) { <span class="bg-blue-500 text-white text-xs px-3 py-1 rounded-full font-bold">RFID</span> }
+                @if (et.UpdatedTs > et.Cts + 60000) { <span class="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold">به‌روزشده</span> }
+            </div>
+        </div>
+
+        <!-- مشخصات -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-500">شناسهٔ رکورد</span><b>@Talayar.Dig(et.Id)</b></div>
+            <div class="flex justify-between"><span class="text-gray-500">کد کار</span><b class="text-amber-700">@Talayar.Dig(et.Code)</b></div>
+            <div class="flex justify-between"><span class="text-gray-500">نام کار</span><b>@(et.Name.Length > 0 ? et.Name : "—")</b></div>
+            <div class="flex justify-between"><span class="text-gray-500">وزن</span><b>@Talayar.Gs(et.Wmw) (@Talayar.MwG(et.Wmw))</b></div>
+            <div class="flex justify-between"><span class="text-gray-500">مزنه</span><b>@(et.Mezane.Length > 0 ? et.Mezane : "—")</b></div>
+            <div class="flex justify-between"><span class="text-gray-500">RFID</span><b class="font-mono">@(et.Rfid.Length > 0 ? et.Rfid : "—")</b></div>
+            <div class="flex justify-between"><span class="text-gray-500">وضعیت</span><b class="@(et.Status == "stock" ? "text-green-600" : "text-red-500")">@StatusName(et.Status)</b></div>
+        </div>
+
+        <!-- کارت اتیکت + بارکد -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6">
+            <h3 class="font-bold text-gray-800 mb-4">🏷 کارت اتیکت + بارکد</h3>
+            <div class="bg-white border-2 border-dashed border-amber-400 rounded-2xl p-6 text-center space-y-3">
+                <p class="font-bold text-xl text-gray-800">@(et.Name.Length > 0 ? et.Name : "—")</p>
+                <p class="text-amber-700 font-bold text-2xl">@Talayar.Dig(et.Code)</p>
+                <p class="text-sm text-gray-600">وزن: <b>@Talayar.Gs(et.Wmw)</b>@(et.Mezane.Length > 0 ? " • مزنه: " + et.Mezane : "")</p>
+                <div class="flex justify-center">@((MarkupString)Talayar.BarcodeSvg(et.Code))</div>
+                <p class="text-xs text-gray-400">@Talayar.Dig(et.Code)</p>
+            </div>
+        </div>
+
+        <!-- عملیات -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            @if (et.Status == "stock")
+            {
+                <a href="/docs/new?type=etiket_sell&etiket=@et.Id" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-3 rounded-xl font-bold text-sm text-center">📜 ثبت سند فروش این اتیکت</a>
+                <a href="/docs/new?type=etiket_out&etiket=@et.Id" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-bold text-sm text-center">📤 خروج از انبار</a>
+            }
+            <button @onclick="OpenMezane" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-5 py-3 rounded-xl font-bold text-sm">✎ به‌روزرسانی مزنه</button>
+            <a href="/etikets?edit=@et.Id" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-3 rounded-xl font-bold text-sm text-center">✏️ ویرایش اتیکت</a>
+        </div>
+
+        @if (mezOpen)
+        {
+            <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+                <h3 class="font-bold text-gray-800">به‌روزرسانی مزنه</h3>
+                <input @bind="mezInput" placeholder="مزنه" class="w-full border rounded-xl p-3 text-sm" />
+                <div class="flex gap-2">
+                    <button @onclick="SaveMezane" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ذخیره</button>
+                    <button @onclick="() => mezOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="bg-white p-12 text-center rounded-2xl shadow-sm border">
+            <p class="text-gray-500 font-bold">اتیکت یافت نشد.</p>
+            <a href="/etikets" class="inline-block mt-4 text-amber-700 font-bold text-sm">← بازگشت به اتیکت‌ها</a>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Etiket? et;
+    private string msg = "";
+    private bool mezOpen;
+    private string mezInput = "";
+
+    protected override void OnInitialized()
+    {
+        et = Db.Etikets.FirstOrDefault(e => e.Id == Id);
+    }
+
+    static string StatusName(string st)
+    {
+        if (st == "stock") return "موجود";
+        if (st == "sold") return "فروخته‌شده";
+        if (st == "out") return "خارج‌شده";
+        return st;
+    }
+
+    private void OpenMezane()
+    {
+        mezInput = et?.Mezane ?? "";
+        mezOpen = true;
+    }
+
+    private void SaveMezane()
+    {
+        if (et != null)
+        {
+            et.Mezane = mezInput.Trim();
+            et.UpdatedTs = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            Db.SaveChanges();
+            msg = "مزنه به‌روزرسانی شد ✓";
+            mezOpen = false;
+        }
+    }
+}

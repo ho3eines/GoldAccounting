@@ -1,0 +1,128 @@
+@page "/cash"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>صندوق</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">💰 صندوق نقدینگی</h2>
+            <p class="text-sm text-gray-500 mt-1">تراز لحظه‌ای، واریز/برداشت آزاد و همهٔ ورودی/خروجی‌های خودکار.</p>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick="() => OpenTx(true)" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">↙ دریافت (واریز)</button>
+            <button @onclick="() => OpenTx(false)" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">↗ پرداخت (برداشت)</button>
+        </div>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <div class="bg-gradient-to-br from-slate-900 to-amber-900 text-white p-6 rounded-2xl shadow-xl">
+        <p class="text-amber-200 text-sm">تراز فعلی صندوق</p>
+        <p class="text-3xl font-bold mt-2 @(bal >= 0 ? "text-amber-400" : "text-red-300")">@Talayar.Money(bal) تومان</p>
+        <p class="text-xs text-amber-100/70 mt-2">ورودی: @Talayar.Money(io.inflow) • خروجی: @Talayar.Money(io.outflow)</p>
+    </div>
+
+    @if (txOpen)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">@(txIn ? "دریافت به صندوق" : "پرداخت از صندوق")</h3>
+            <input @bind="txAmt" placeholder="مبلغ به تومان" class="w-full border rounded-xl p-3 text-sm" />
+            <input @bind="txDescr" placeholder="بابت / شرح" class="w-full border rounded-xl p-3 text-sm" />
+            <div class="flex gap-2">
+                <button @onclick="DoTx" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ثبت</button>
+                <button @onclick="() => txOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50"><h3 class="font-bold text-gray-800">تراکنش‌های اخیر</h3></div>
+        <div class="divide-y">
+            @foreach (var t in list)
+            {
+                <div class="p-4 flex justify-between items-center hover:bg-gray-50">
+                    <div>
+                        <p class="text-sm font-bold @(t.Kind == "in" ? "text-green-600" : "text-red-500")">@(t.Kind == "in" ? "↙ دریافت" : "↗ پرداخت")</p>
+                        <p class="text-xs text-gray-500 mt-0.5">@Talayar.Dig(t.DateJ) • @t.Descr</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <b class="text-sm @(t.Kind == "in" ? "text-green-600" : "text-red-500")">@(t.Kind == "in" ? "+" : "−")@Talayar.Money(t.Amount)</b>
+                        <button @onclick="() => DeleteTx(t.Id)" class="text-red-400 hover:text-red-600 text-xs font-bold">🗑</button>
+                    </div>
+                </div>
+            }
+            @if (!list.Any())
+            {
+                <p class="p-8 text-center text-gray-400 text-sm">تراکنشی ثبت نشده است.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private long bal;
+    private (long inflow, long outflow) io;
+    private List<CashTransaction> list = new();
+    private string msg = "", err = "";
+
+    private bool txOpen;
+    private bool txIn;
+    private string txAmt = "", txDescr = "";
+
+    protected override void OnInitialized() { Load(); }
+
+    private void Load()
+    {
+        bal = Svc.CashBalance();
+        io = Svc.CashInOut();
+        list = Db.CashTransactions.OrderByDescending(c => c.Ts).ThenByDescending(c => c.Id).Take(200).ToList();
+    }
+
+    private void OpenTx(bool isIn)
+    {
+        txIn = isIn;
+        txAmt = "";
+        txDescr = "";
+        txOpen = true;
+        err = "";
+    }
+
+    private void DoTx()
+    {
+        err = "";
+        long amt = Talayar.ParseMoney(txAmt);
+        if (amt <= 0) { err = "مبلغ نامعتبر"; return; }
+        string desc = txDescr.Trim();
+        if (desc.Length == 0) desc = txIn ? "واریز آزاد به صندوق" : "برداشت آزاد از صندوق";
+        Db.CashTransactions.Add(new CashTransaction
+        {
+            Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            DateJ = Talayar.Jal.Today(),
+            Kind = txIn ? "in" : "out",
+            Amount = amt,
+            Descr = desc,
+            Iid = 0
+        });
+        Db.SaveChanges();
+        msg = "ثبت شد ✓";
+        txOpen = false;
+        Load();
+    }
+
+    private void DeleteTx(int id)
+    {
+        var t = Db.CashTransactions.FirstOrDefault(x => x.Id == id);
+        if (t != null) { Db.CashTransactions.Remove(t); Db.SaveChanges(); }
+        msg = "حذف شد ✓";
+        Load();
+    }
+}

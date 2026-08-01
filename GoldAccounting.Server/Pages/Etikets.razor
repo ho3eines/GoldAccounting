@@ -1,0 +1,208 @@
+@page "/etikets"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>اتیکت‌ها</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🏷 اتیکت‌ها</h2>
+            <p class="text-sm text-gray-500 mt-1">کد کار، نام، وزن، مزنه، RFID و وضعیت (موجود/فروخته‌شده/خارج).</p>
+        </div>
+        <button @onclick="() => { editingId = 0; OpenForm(); }" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ اتیکت جدید</button>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <!-- خلاصه -->
+    @{
+        var ets = Db.Etikets.ToList();
+        long totalW = ets.Sum(e => e.Wmw);
+        int upd = ets.Count(e => e.UpdatedTs > e.Cts + 60000);
+        int rf = ets.Count(e => e.Rfid.Length > 0);
+    }
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border"><p class="text-xs text-gray-500">تعداد اتیکت</p><p class="text-lg font-bold text-gray-800 mt-1">@Talayar.Dig(ets.Count)</p></div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border"><p class="text-xs text-gray-500">مجموع وزن</p><p class="text-lg font-bold text-amber-700 mt-1">@Talayar.Gs(totalW)</p></div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border"><p class="text-xs text-gray-500">به‌روزشده‌ها / RFID</p><p class="text-lg font-bold text-gray-800 mt-1">@Talayar.Dig(upd) • دارای RFID: @Talayar.Dig(rf)</p></div>
+    </div>
+
+    <!-- جستجو و فیلتر -->
+    <div class="bg-white rounded-2xl shadow-sm border p-5 space-y-3">
+        <input @bind="q" @bind:event="oninput" placeholder="جستجو: کد کار یا نام کار…" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+        <div class="flex flex-wrap gap-1">
+            @for (int i = 0; i < 4; i++)
+            {
+                var idx = i;
+                <button @onclick="() => stFilter = idx" class="px-3 py-2 rounded-lg text-xs font-bold transition @(stFilter == idx ? "bg-slate-800 text-white" : "bg-gray-100 text-gray-600")">@(idx == 0 ? "همهٔ وضعیت‌ها" : idx == 1 ? "موجود" : idx == 2 ? "فروخته‌شده" : "خارج‌شده")</button>
+            }
+        </div>
+    </div>
+
+    @if (formOpen)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">@(editingId == 0 ? "اتیکت جدید" : "ویرایش اتیکت")</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">کد کار (شناسهٔ اتیکت)</label>
+                    <input @bind="fCode" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">نام کار (مثل: النگو ستاره)</label>
+                    <input @bind="fName" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">وزن (گرم و سوت)</label>
+                    <input @bind="fW" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">مزنه (اختیاری)</label>
+                    <input @bind="fMez" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">کد RFID (اختیاری)</label>
+                    <input @bind="fRfid" class="w-full border rounded-xl p-2.5 text-sm" />
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button @onclick="Save" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">@(editingId == 0 ? "ثبت اتیکت" : "ذخیره")</button>
+                <button @onclick="() => formOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="divide-y">
+            @foreach (var e in list)
+            {
+                <a href="/etikets/@e.Id" class="p-5 flex justify-between items-center hover:bg-gray-50 block">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-amber-700 font-bold">@Talayar.Dig(e.Code)</span>
+                            @if (e.Rfid.Length > 0) { <span title="دارای RFID">📡</span> }
+                            @if (e.Status != "stock")
+                            {
+                                <span class="bg-red-50 text-red-600 text-xs px-2 py-0.5 rounded-full font-bold">@StatusName(e.Status)</span>
+                            }
+                            @if (e.UpdatedTs > e.Cts + 60000)
+                            {
+                                <span class="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold">به‌روزشده</span>
+                            }
+                        </div>
+                        <p class="text-sm text-gray-700 mt-0.5">@e.Name • <b>@Talayar.Gs(e.Wmw)</b></p>
+                        @if (e.Mezane.Length > 0)
+                        {
+                            <p class="text-xs text-gray-400">مزنه: @e.Mezane</p>
+                        }
+                    </div>
+                    <span class="text-gray-300 text-lg">‹</span>
+                </a>
+            }
+            @if (!list.Any())
+            {
+                <p class="p-10 text-center text-gray-400 text-sm">اتیکتی یافت نشد — با دکمهٔ «اتیکت جدید» بسازید.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Etiket> list = new();
+    private string q = "";
+    private int stFilter;
+    private string msg = "", err = "";
+
+    private bool formOpen;
+    private int editingId;
+    private string fCode = "", fName = "", fW = "", fMez = "", fRfid = "";
+
+    static string StatusName(string st)
+    {
+        if (st == "stock") return "موجود";
+        if (st == "sold") return "فروخته‌شده";
+        if (st == "out") return "خارج‌شده";
+        return st;
+    }
+
+    protected override void OnInitialized() { Load(); }
+
+    private void Load()
+    {
+        var all = Db.Etikets.OrderBy(e => e.Code).ThenBy(e => e.Id).Take(500).ToList();
+        string sq = Talayar.En(q).Trim();
+        list = all.Where(e =>
+        {
+            if (sq.Length > 0 && !Talayar.En(e.Code + " " + e.Name).Contains(sq)) return false;
+            if (stFilter == 1 && e.Status != "stock") return false;
+            if (stFilter == 2 && e.Status != "sold") return false;
+            if (stFilter == 3 && e.Status != "out") return false;
+            return true;
+        }).ToList();
+    }
+
+    private void OpenForm()
+    {
+        msg = ""; err = "";
+        if (editingId == 0)
+        {
+            fCode = ""; fName = ""; fW = ""; fMez = ""; fRfid = "";
+        }
+        else
+        {
+            var e = Db.Etikets.FirstOrDefault(x => x.Id == editingId);
+            if (e != null)
+            {
+                fCode = e.Code; fName = e.Name;
+                fW = e.Wmw > 0 ? Talayar.Mw(e.Wmw) : "";
+                fMez = e.Mezane; fRfid = e.Rfid;
+            }
+        }
+        formOpen = true;
+    }
+
+    private void Save()
+    {
+        err = ""; msg = "";
+        string cd = Talayar.En(fCode).Trim();
+        if (cd.Length == 0) { err = "کد کار را بنویسید"; return; }
+        long ts = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+        if (editingId == 0)
+        {
+            Db.Etikets.Add(new Etiket
+            {
+                Code = cd,
+                Name = fName.Trim(),
+                Wmw = Talayar.ParseMw(fW),
+                Mezane = fMez.Trim(),
+                Rfid = fRfid.Trim(),
+                UpdatedTs = ts,
+                Cts = ts,
+                Status = "stock"
+            });
+        }
+        else
+        {
+            var e = Db.Etikets.FirstOrDefault(x => x.Id == editingId);
+            if (e != null)
+            {
+                e.Code = cd; e.Name = fName.Trim();
+                e.Wmw = Talayar.ParseMw(fW);
+                e.Mezane = fMez.Trim(); e.Rfid = fRfid.Trim();
+                e.UpdatedTs = ts;
+            }
+        }
+        Db.SaveChanges();
+        msg = "ذخیره شد ✓";
+        formOpen = false;
+        Load();
+    }
+}

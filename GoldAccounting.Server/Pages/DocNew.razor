@@ -1,0 +1,361 @@
+@page "/docs/new"
+@inject AppDbContext Db
+@inject TalayarService Svc
+@inject NavigationManager Nav
+
+<PageTitle>ثبت سند جدید</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">📜 ثبت سند مرکزی</h2>
+            <p class="text-sm text-gray-500 mt-1">بیش از ۴۰ نوع سند با فرم پویا — خرید/فروش/ورود/خروج و طلب/بدهی برای آب‌شده، سکه، شمش، ارز، نقره، کارساخته + نقدی، بانکی، چک، تخفیف و اتیکت.</p>
+        </div>
+        <a href="/docs" class="text-sm font-bold text-amber-700 hover:text-amber-800">← دفتر اسناد</a>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <!-- انتخاب نوع -->
+    <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+        <div>
+            <label class="block text-xs text-gray-500 mb-2">گروه سند</label>
+            <div class="flex flex-wrap gap-2">
+                @for (int gi = 0; gi < TalayarService.DOC_GROUPS.Length; gi++)
+                {
+                    var g = TalayarService.DOC_GROUPS[gi];
+                    var gidx = gi;
+                    <button @onclick="() => SelectGroup(gidx)" class="px-3 py-2 rounded-xl text-xs font-bold transition @(selectedGroupIdx == gidx ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200")">@g[0]</button>
+                }
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-2">نوع سند</label>
+            <select @bind="type" class="w-full border rounded-xl p-2.5 text-sm">
+                <option value="">— انتخاب کنید —</option>
+                @foreach (var k in groupKeys.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <option value="@k">@TalayarService.TypeLabel(k)</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (type.Length > 0)
+    {
+        <!-- تاریخ و طرف حساب -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">تاریخ سند (شمسی)</label>
+                <input @bind="dateJ" class="w-full border rounded-xl p-2.5 text-sm" />
+            </div>
+            @if (SvcNeedCustomer)
+            {
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">طرف حساب</label>
+                    <select @bind="cid" class="w-full border rounded-xl p-2.5 text-sm">
+                        <option value="0">— انتخاب کنید —</option>
+                        @foreach (var c in Db.Customers.OrderBy(c => c.Code))
+                        {
+                            <option value="@c.Id">@c.Name (@Talayar.Dig(c.Code))</option>
+                        }
+                    </select>
+                </div>
+            }
+            @if (SvcNeedEtiket)
+            {
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">اتیکت</label>
+                    <select @bind="etiketId" class="w-full border rounded-xl p-2.5 text-sm">
+                        <option value="0">— انتخاب اتیکت —</option>
+                        @foreach (var e in Db.Etikets.Where(e => etiketForSell ? e.Status == "stock" : true).OrderBy(e => e.Code).Take(400))
+                        {
+                            <option value="@e.Id">@Talayar.Dig(e.Code) — @e.Name • @Talayar.Gs(e.Wmw)</option>
+                        }
+                    </select>
+                </div>
+            }
+            @if (SvcNeedDef)
+            {
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">@TalayarService.DefTitle(type)</label>
+                    <select @bind="defId" class="w-full border rounded-xl p-2.5 text-sm">
+                        <option value="0">— انتخاب —</option>
+                        @foreach (var d in Db.Defs.Where(d => d.Kind == TalayarService.DefKind(type)).OrderBy(d => d.Id))
+                        {
+                            <option value="@d.Id">@d.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+
+        <!-- فیلدهای پویا -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+            <h3 class="font-bold text-gray-800">مشخصات سند</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @if (SvcNeedWeight)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">@(type.StartsWith("work") || type.StartsWith("sil") ? "وزن (گرم، با سوت)" : "وزن (گرم و سوت)")</label>
+                        <input @bind="wInput" class="w-full border rounded-xl p-2.5 text-sm" placeholder="مثلاً ۱۲٫۳۵۰" />
+                    </div>
+                }
+                @if (SvcNeedCount)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">تعداد (عدد)</label>
+                        <input @bind="countInput" class="w-full border rounded-xl p-2.5 text-sm" placeholder="۰" />
+                    </div>
+                }
+                @if (SvcNeedQty)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">مقدار ارز</label>
+                        <input @bind="qtyInput" class="w-full border rounded-xl p-2.5 text-sm" placeholder="۰" />
+                    </div>
+                }
+                @if (SvcNeedKarat)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">عیار</label>
+                        <div class="flex gap-1">
+                            @for (int i = 0; i < Talayar.KARAT_LABELS.Length; i++)
+                            {
+                                var idx = i;
+                                <button @onclick="() => karat = Talayar.KARATS[idx]" class="flex-1 py-2 rounded-lg text-xs font-bold transition @(karat == Talayar.KARATS[idx] ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600")">@Talayar.KARAT_LABELS[idx]</button>
+                            }
+                        </div>
+                    </div>
+                }
+                @if (SvcNeedRateCol)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">نرخ هر واحد ارز به تومان</label>
+                        <input @bind="rateInput" class="w-full border rounded-xl p-2.5 text-sm" />
+                    </div>
+                }
+                @if (SvcNeedWage)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">اجرت/کارمزد هر گرم (تومان، اختیاری)</label>
+                        <input @bind="wageInput" class="w-full border rounded-xl p-2.5 text-sm" />
+                    </div>
+                }
+                @if (SvcNeedMoney)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">@(type.StartsWith("check") || type.StartsWith("disc") ? "مبلغ (تومان)" : "مبلغ مالی (تومان)")</label>
+                        <input @bind="moneyInput" class="w-full border rounded-xl p-2.5 text-sm" placeholder="۰" />
+                    </div>
+                }
+                @if (SvcNeedCheck)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">شماره چک</label>
+                        <input @bind="noInput" class="w-full border rounded-xl p-2.5 text-sm" />
+                    </div>
+                }
+                @if (SvcNeedCheck)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">سررسید (مثل ۱۴۰۵/۰۶/۱۵)</label>
+                        <input @bind="dueInput" class="w-full border rounded-xl p-2.5 text-sm" />
+                    </div>
+                }
+                @if (SvcNeedSettle)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">نحوهٔ تسویهٔ مالی</label>
+                        <div class="flex gap-1">
+                            @for (int i = 0; i < 3; i++)
+                            {
+                                var idx = i;
+                                <button @onclick="() => settle = idx" class="flex-1 py-2 rounded-lg text-xs font-bold transition @(settle == idx ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600")">@(idx == 0 ? "به حساب مشتری" : idx == 1 ? "نقدی از صندوق" : "بانکی")</button>
+                            }
+                        </div>
+                    </div>
+                }
+                @if (SvcNeedBank)
+                {
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">بانک</label>
+                        <select @bind="bankId" class="w-full border rounded-xl p-2.5 text-sm">
+                            <option value="0">— انتخاب بانک —</option>
+                            @foreach (var b in Db.Defs.Where(d => d.Kind == "bank").OrderBy(d => d.Id))
+                            {
+                                <option value="@b.Id">@b.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">شرح سند</label>
+                    <input @bind="note" class="w-full border rounded-xl p-2.5 text-sm" placeholder="اختیاری" />
+                </div>
+            </div>
+
+            <!-- پیش‌نمایش اثرات -->
+            <div class="bg-slate-900 text-white rounded-xl p-4">
+                <p class="text-xs text-amber-300 font-bold mb-2">پیش‌نمایش اثرات سند</p>
+                <div class="space-y-1 text-sm">
+                    @foreach (var l in PreviewLines())
+                    {
+                        <p>• @l</p>
+                    }
+                </div>
+            </div>
+
+            <button @onclick="Save" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-amber-600/20 transition">⬇ ثبت سند</button>
+        </div>
+    }
+</div>
+
+@code {
+    private string type = "";
+    private int selectedGroupIdx = -1;
+    private string groupKeys = "";
+    private string dateJ = "";
+    private int cid;
+    private int karat = 750;
+    private int defId, bankId, settle, etiketId;
+    private string wInput = "", countInput = "", qtyInput = "", moneyInput = "", rateInput = "", wageInput = "", noInput = "", dueInput = "", note = "";
+    private string msg = "", err = "";
+
+    // پارامتر ورودی: /docs/new?cid=5&type=etiket_sell&etiket=7
+    [SupplyParameterFromQuery(Name = "cid")]
+    public string? CidQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "type")]
+    public string? TypeQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "etiket")]
+    public string? EtiketQuery { get; set; }
+
+    protected override void OnInitialized()
+    {
+        dateJ = Talayar.Jal.Today();
+        dueInput = Talayar.Jal.Today();
+        if (int.TryParse(CidQuery, out int c0) && c0 > 0) cid = c0;
+        if (!string.IsNullOrEmpty(TypeQuery))
+        {
+            for (int gi = 0; gi < TalayarService.DOC_GROUPS.Length; gi++)
+            {
+                if (TalayarService.DOC_GROUPS[gi][1].Split(',').Contains(TypeQuery))
+                {
+                    SelectGroup(gi);
+                    type = TypeQuery;
+                    break;
+                }
+            }
+        }
+        if (int.TryParse(EtiketQuery, out int e0) && e0 > 0) etiketId = e0;
+    }
+
+    private bool SvcNeedCustomer => TalayarService.NeedCustomer(type);
+    private bool SvcNeedEtiket => TalayarService.NeedEtiket(type);
+    private bool SvcNeedWeight => TalayarService.NeedWeight(type);
+    private bool SvcNeedKarat => TalayarService.NeedKarat(type);
+    private bool SvcNeedDef => TalayarService.NeedDef(type);
+    private bool SvcNeedCount => TalayarService.NeedCount(type);
+    private bool SvcNeedQty => TalayarService.NeedQty(type);
+    private bool SvcNeedMoney => TalayarService.NeedMoney(type);
+    private bool SvcNeedSettle => TalayarService.NeedSettle(type);
+    private bool SvcNeedBank => TalayarService.NeedBank(type, settle);
+    private bool SvcNeedCheck => TalayarService.NeedCheck(type);
+    private bool SvcNeedWage => TalayarService.NeedWage(type);
+    private bool SvcNeedRateCol => TalayarService.NeedRateCol(type);
+    private bool etiketForSell => type == "etiket_sell" || type == "etiket_out";
+
+    private void SelectGroup(int gi)
+    {
+        selectedGroupIdx = gi;
+        groupKeys = TalayarService.DOC_GROUPS[gi][1];
+        type = groupKeys.Split(',')[0];
+        ResetFields();
+    }
+
+    private void ResetFields()
+    {
+        karat = 750;
+        defId = 0; bankId = 0; settle = 0; etiketId = 0;
+        wInput = ""; countInput = ""; qtyInput = ""; moneyInput = ""; rateInput = ""; wageInput = ""; noInput = ""; note = "";
+        err = ""; msg = "";
+    }
+
+    private long AmountMoney()
+    {
+        if (SvcNeedRateCol)
+        {
+            double q = Talayar.ParseDouble(qtyInput);
+            long r = Talayar.ParseMoney(rateInput);
+            if (q > 0 && r > 0) return (long)Math.Round(q * r);
+        }
+        return Talayar.ParseMoney(moneyInput);
+    }
+
+    private List<string> PreviewLines()
+    {
+        var d = BuildDraft();
+        return Svc.BuildDocLines(d);
+    }
+
+    private DocDraft BuildDraft()
+    {
+        string cname = cid > 0 ? (Db.Customers.FirstOrDefault(c => c.Id == cid)?.Name ?? "") : "";
+        string defName = defId > 0 ? (Db.Defs.FirstOrDefault(x => x.Id == defId)?.Name ?? "") : "";
+        string bankName = bankId > 0 ? (Db.Defs.FirstOrDefault(x => x.Id == bankId)?.Name ?? "") : "";
+        string etiketCode = "", etiketName = "";
+        if (etiketId > 0)
+        {
+            var e = Db.Etikets.FirstOrDefault(x => x.Id == etiketId);
+            if (e != null) { etiketCode = e.Code; etiketName = e.Name; }
+        }
+        return new DocDraft
+        {
+            Type = type,
+            DateJ = dateJ,
+            Cid = cid,
+            Cname = cname,
+            Karat = karat,
+            DefId = defId,
+            DefName = defName,
+            BankId = bankId,
+            BankName = bankName,
+            Wmg = Talayar.ParseMw(wInput),
+            Count = Talayar.ParseMoney(countInput),
+            QtyCur = Talayar.ParseDouble(qtyInput),
+            Money = AmountMoney(),
+            CheckNo = noInput.Trim(),
+            CheckDue = dueInput.Trim(),
+            Settle = settle,
+            EtiketId = etiketId,
+            Note = note.Trim()
+        };
+    }
+
+    private void Save()
+    {
+        err = ""; msg = "";
+        if (type.Length == 0) { err = "نوع سند را انتخاب کنید"; return; }
+        if (SvcNeedCustomer && cid <= 0) { err = "برای این نوع سند باید یک مشتری/حساب انتخاب شود."; return; }
+        if (SvcNeedEtiket && etiketId <= 0) { err = "ابتدا اتیکت موردنظر را انتخاب کنید."; return; }
+        if (SvcNeedDef && defId <= 0) { err = "ابتدا «" + TalayarService.DefTitle(type) + "» را انتخاب کنید."; return; }
+        if (SvcNeedBank && bankId <= 0) { err = "بانک را انتخاب کنید."; return; }
+
+        var d = BuildDraft();
+        if (SvcNeedWeight && d.Wmg <= 0) { err = "وزن معتبر وارد کنید"; return; }
+        if (SvcNeedCount && d.Count <= 0) { err = "تعداد معتبر وارد کنید"; return; }
+        if (SvcNeedQty && d.QtyCur <= 0) { err = "مقدار ارز را وارد کنید"; return; }
+        if (SvcNeedMoney && d.Money <= 0) { err = "مبلغ معتبر وارد کنید"; return; }
+
+        long id = Svc.SaveDoc(d);
+        msg = "سند شماره " + Talayar.Dig(id) + " ثبت شد ✓";
+        Nav.NavigateTo("/docs?doc=" + id, forceLoad: true);
+    }
+}

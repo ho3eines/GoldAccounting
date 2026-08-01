@@ -1,0 +1,176 @@
+@page "/banks"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>بانک‌ها</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🏦 بانک‌ها و حساب‌های بانکی</h2>
+            <p class="text-sm text-gray-500 mt-1">موجودی هر حساب بانکی، واریز/برداشت و تراکنش‌های خودکار اسناد.</p>
+        </div>
+        <button @onclick="() => addBankOpen = true" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ افزودن بانک</button>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <div class="bg-gradient-to-br from-slate-900 to-amber-900 text-white p-6 rounded-2xl shadow-xl">
+        <p class="text-amber-200 text-sm">مجموع موجودی بانک‌ها</p>
+        <p class="text-3xl font-bold mt-2 text-amber-400">@Talayar.Money(Svc.BanksTotal()) تومان</p>
+    </div>
+
+    @if (addBankOpen)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">بانک جدید</h3>
+            <input @bind="newBankName" placeholder="نام بانک" class="w-full border rounded-xl p-3 text-sm" />
+            <input @bind="newBankAcc" placeholder="شماره حساب (اختیاری)" class="w-full border rounded-xl p-3 text-sm" />
+            <div class="flex gap-2">
+                <button @onclick="AddBank" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ثبت</button>
+                <button @onclick="() => addBankOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        @foreach (var b in banks)
+        {
+            <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <div class="p-5 flex justify-between items-center bg-gray-50 border-b">
+                    <div>
+                        <p class="font-bold text-gray-800">🏦 @b.Name</p>
+                        @if (b.X3.Length > 0)
+                        {
+                            <p class="text-xs text-gray-500 mt-0.5">شماره حساب: @Talayar.Dig(b.X3)</p>
+                        }
+                    </div>
+                    <p class="font-bold text-amber-700">@Talayar.Money(BalanceOf(b.Id)) تومان</p>
+                </div>
+                <div class="p-4 space-y-2 max-h-64 overflow-y-auto">
+                    @foreach (var t in TxOf(b.Id))
+                    {
+                        <div class="flex justify-between items-center text-xs @(t.Kind == "in" ? "text-green-700" : "text-red-500")">
+                            <span>@Talayar.Dig(t.DateJ) • @t.Descr</span>
+                            <b>@(t.Kind == "in" ? "+" : "−")@Talayar.Money(t.Amount)</b>
+                        </div>
+                    }
+                    @if (!TxOf(b.Id).Any())
+                    {
+                        <p class="text-xs text-gray-400 text-center py-3">تراکنشی ثبت نشده است.</p>
+                    }
+                </div>
+                <div class="p-3 border-t flex gap-2">
+                    <button @onclick="() => OpenTx(b.Id, true)" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs font-bold">↙ واریز</button>
+                    <button @onclick="() => OpenTx(b.Id, false)" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-xs font-bold">↗ برداشت</button>
+                </div>
+            </div>
+        }
+        @if (!banks.Any())
+        {
+            <div class="col-span-full bg-white p-12 text-center rounded-2xl shadow-sm border">
+                <p class="text-gray-500">بانکی تعریف نشده — با «افزودن بانک» شروع کنید.</p>
+            </div>
+        }
+    </div>
+
+    @if (txBankId > 0)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">@(txIn ? "واریز به بانک" : "برداشت از بانک") — @banks.FirstOrDefault(b => b.Id == txBankId)?.Name</h3>
+            <input @bind="txAmt" placeholder="مبلغ به تومان" class="w-full border rounded-xl p-3 text-sm" />
+            <input @bind="txDescr" placeholder="شرح" class="w-full border rounded-xl p-3 text-sm" />
+            <div class="flex gap-2">
+                <button @onclick="DoTx" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">ثبت</button>
+                <button @onclick="() => txBankId = 0" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Def> banks = new();
+    private Dictionary<int, List<BankTransaction>> txCache = new();
+    private Dictionary<int, long> balCache = new();
+    private string msg = "", err = "";
+
+    private bool addBankOpen;
+    private string newBankName = "", newBankAcc = "";
+
+    private int txBankId;
+    private bool txIn;
+    private string txAmt = "", txDescr = "";
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void Load()
+    {
+        banks = Db.Defs.Where(d => d.Kind == "bank").OrderBy(d => d.Id).ToList();
+        txCache = new();
+        balCache = new();
+        foreach (var b in banks)
+        {
+            txCache[b.Id] = Db.BankTransactions.Where(t => t.BankId == b.Id)
+                .OrderByDescending(t => t.Ts).ThenByDescending(t => t.Id).Take(50).ToList();
+            balCache[b.Id] = Svc.BankBalance(b.Id);
+        }
+    }
+
+    private long BalanceOf(int id) => balCache.TryGetValue(id, out long v) ? v : 0;
+    private List<BankTransaction> TxOf(int id) => txCache.TryGetValue(id, out var l) ? l : new();
+
+    private void AddBank()
+    {
+        err = ""; msg = "";
+        if (newBankName.Trim().Length == 0) { err = "نام بانک را بنویسید"; return; }
+        Db.Defs.Add(new Def { Kind = "bank", Name = newBankName.Trim(), X3 = Talayar.En(newBankAcc), Cts = DateTimeOffset.Now.ToUnixTimeMilliseconds() });
+        Db.SaveChanges();
+        msg = "بانک ثبت شد ✓";
+        addBankOpen = false;
+        newBankName = ""; newBankAcc = "";
+        Load();
+    }
+
+    private void OpenTx(int bankId, bool isIn)
+    {
+        txBankId = bankId;
+        txIn = isIn;
+        txAmt = "";
+        txDescr = "";
+    }
+
+    private void DoTx()
+    {
+        err = "";
+        long amt = Talayar.ParseMoney(txAmt);
+        if (amt <= 0) { err = "مبلغ نامعتبر"; return; }
+        string desc = txDescr.Trim();
+        if (desc.Length == 0) desc = txIn ? "واریز به بانک" : "برداشت از بانک";
+        Db.BankTransactions.Add(new BankTransaction
+        {
+            Ts = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            DateJ = Talayar.Jal.Today(),
+            BankId = txBankId,
+            Kind = txIn ? "in" : "out",
+            Amount = amt,
+            Descr = desc,
+            Cid = 0,
+            DocId = 0,
+            TransferCode = "web-bank-" + Guid.NewGuid().ToString("N").Substring(0, 8)
+        });
+        Db.SaveChanges();
+        msg = "ثبت شد ✓";
+        txBankId = 0;
+        Load();
+    }
+}

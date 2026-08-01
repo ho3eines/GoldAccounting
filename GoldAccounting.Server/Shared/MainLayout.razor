@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject TalayarService Svc
 
 <div class="min-h-screen flex flex-col md:flex-row bg-gray-100">
     <!-- Mobile Header -->
@@ -24,30 +25,79 @@
             <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" Match="NavLinkMatch.All" href="">
                 <span class="ml-3">📊</span> داشبورد مدیریت
             </NavLink>
+
+            <p class="px-4 pt-3 pb-1 text-[10px] font-bold text-slate-500">عملیات اصلی</p>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="docs/new">
+                <span class="ml-3">📜</span> ثبت سند جدید
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="invoices/new">
+                <span class="ml-3">🧾</span> فاکتور فروش جدید
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="buy">
+                <span class="ml-3">🛍️</span> خرید طلای کارکرده
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="rates">
+                <span class="ml-3">🪙</span> نرخ روز طلا
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="prices">
+                <span class="ml-3">🌐</span> قیمت‌های بازار
+            </NavLink>
+
+            <p class="px-4 pt-3 pb-1 text-[10px] font-bold text-slate-500">مدیریت</p>
             <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="invoices">
-                <span class="ml-3">🧾</span> فاکتورها و فروش
+                <span class="ml-3">🔖</span> فاکتورها
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="docs">
+                <span class="ml-3">🗂</span> دفتر اسناد
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="customers">
+                <span class="ml-3">👥</span> حساب‌ها / مشتریان
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="items">
+                <span class="ml-3">📦</span> اجناس و انبار
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="cash">
+                <span class="ml-3">💰</span> صندوق
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="gold">
+                <span class="ml-3">⚖️</span> طلا و آب‌شده
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="banks">
+                <span class="ml-3">🏦</span> بانک‌ها
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="checks">
+                <span class="ml-3">💳</span> چک‌ها
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="etikets">
+                <span class="ml-3">🏷</span> اتیکت‌ها
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="defs">
+                <span class="ml-3">🗄</span> کدینگ‌ها
+            </NavLink>
+
+            <p class="px-4 pt-3 pb-1 text-[10px] font-bold text-slate-500">تحلیل و سیستم</p>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="assets">
+                <span class="ml-3">⚖️</span> دارایی‌ها و تراز
+            </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="reports">
+                <span class="ml-3">📊</span> گزارش‌ها
             </NavLink>
             <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="accounting">
                 <span class="ml-3">📑</span> اسناد حسابداری
             </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="checks">
-                <span class="ml-3">💳</span> مدیریت چک‌ها
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="cashgold">
-                <span class="ml-3">💰</span> صندوق و طلا
-            </NavLink>
             <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="onlineshop">
                 <span class="ml-3">🛒</span> فروشگاه آنلاین
-            </NavLink>
-            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="inventory">
-                <span class="ml-3">📦</span> انبار و کالا
             </NavLink>
             <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="syncmanager">
                 <span class="ml-3">🔄</span> همگام‌سازی اندروید
             </NavLink>
+            <NavLink class="flex items-center px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition" href="settings">
+                <span class="ml-3">⚙️</span> تنظیمات و بکاپ
+            </NavLink>
         </nav>
-        <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-            همگام‌سازی دوطرفه با اندروید ✓
+        <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
+            <p>نرخ روز: @(rate > 0 ? Talayar.Money(rate) + " تومان" : "ثبت نشده")</p>
+            <p>همگام‌سازی دوطرفه با اندروید ✓</p>
         </div>
     </div>
 
@@ -70,6 +120,12 @@
 
 @code {
     private bool sidebarOpen = false;
+    private long rate;
+
+    protected override void OnInitialized()
+    {
+        rate = Svc.CurrentRate();
+    }
 
     private void ToggleSidebar()
     {

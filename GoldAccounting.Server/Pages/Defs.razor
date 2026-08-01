@@ -1,0 +1,216 @@
+@page "/defs"
+@inject AppDbContext Db
+@inject TalayarService Svc
+
+<PageTitle>کدینگ‌ها</PageTitle>
+
+<div class="space-y-6 max-w-4xl">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">🗄 کدینگ‌ها</h2>
+            <p class="text-sm text-gray-500 mt-1">لیست نام‌ها: گروه‌های حساب، ری‌گیری‌ها، ارزها، سکه‌ها، شمش‌ها، بانک‌ها، کارهای ساخته و نقره.</p>
+        </div>
+        <button @onclick="OpenForm" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold shadow transition">＋ افزودن مورد جدید</button>
+    </div>
+
+    @if (msg.Length > 0)
+    {
+        <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-semibold">@msg</div>
+    }
+    @if (err.Length > 0)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-sm font-semibold">@err</div>
+    }
+
+    <div class="flex flex-wrap gap-2">
+        @for (int i = 0; i < KINDS.Length; i++)
+        {
+            var idx = i;
+            <button @onclick="() => SelectKind(idx)" class="px-4 py-2 rounded-xl text-xs font-bold transition @(kindIdx == idx ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200")">@KINDS[idx][1]</button>
+        }
+    </div>
+
+    @if (formOpen)
+    {
+        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-3">
+            <h3 class="font-bold text-gray-800">@(editingId == 0 ? "افزودن " : "ویرایش ")@KindName</h3>
+            <input @bind="fName" placeholder="نام" class="w-full border rounded-xl p-3 text-sm" />
+            @if (withW)
+            {
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">وزن هر عدد (گرم — مثل ۸٫۱۳۳)</label>
+                    <input @bind="fW" class="w-full border rounded-xl p-3 text-sm" />
+                </div>
+            }
+            @if (withK)
+            {
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">@(withW ? "عیار (مثل ۹۰۰ یا ۹۹۵)" : "عیار (مثل ۹۹۹ یا ۹۲۵)")</label>
+                    <input @bind="fK" class="w-full border rounded-xl p-3 text-sm" />
+                </div>
+            }
+            @if (withN)
+            {
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">شماره حساب (اختیاری)</label>
+                    <input @bind="fN" class="w-full border rounded-xl p-3 text-sm" />
+                </div>
+            }
+            <div class="flex gap-2">
+                <button @onclick="Save" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm">@(editingId == 0 ? "ثبت" : "ذخیره")</button>
+                @if (editingId > 0)
+                {
+                    <button @onclick="Delete" class="bg-red-50 hover:bg-red-100 text-red-700 px-6 py-2.5 rounded-xl font-bold text-sm">حذف</button>
+                }
+                <button @onclick="() => formOpen = false" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-sm">انصراف</button>
+            </div>
+        </div>
+    }
+
+    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50">
+            <h3 class="font-bold text-gray-800">@KindName</h3>
+        </div>
+        <div class="divide-y">
+            @foreach (var d in list)
+            {
+                <div class="p-4 flex justify-between items-center hover:bg-gray-50">
+                    <div>
+                        <p class="font-bold text-gray-800 text-sm">@d.Name</p>
+                        @if (SubOf(d).Length > 0)
+                        {
+                            <p class="text-xs text-gray-500 mt-0.5">@SubOf(d)</p>
+                        }
+                    </div>
+                    <button @onclick="() => { editingId = d.Id; OpenForm(); }" class="text-blue-600 hover:text-blue-800 text-xs font-bold">✎ ویرایش</button>
+                </div>
+            }
+            @if (!list.Any())
+            {
+                <p class="p-8 text-center text-gray-400 text-sm">موردی ثبت نشده — از دکمهٔ «افزودن» استفاده کنید.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    static readonly string[][] KINDS = {
+        new[] { "group", "گروه‌های حساب" },
+        new[] { "rizgiri", "ری‌گیری‌ها" },
+        new[] { "curr", "ارزها" },
+        new[] { "coin", "سکه‌ها" },
+        new[] { "bullion", "شمش‌ها" },
+        new[] { "bank", "بانک‌ها" },
+        new[] { "work", "کارهای ساخته" },
+        new[] { "silver", "نقره" },
+    };
+
+    private int kindIdx;
+    private string Kind => KINDS[kindIdx][0];
+    private string KindName => KINDS[kindIdx][1];
+    private List<Def> list = new();
+    private string msg = "", err = "";
+
+    private bool formOpen;
+    private int editingId;
+    private string fName = "", fW = "", fK = "", fN = "";
+    private bool withW => Kind == "coin" || Kind == "bullion";
+    private bool withK => withW || Kind == "silver";
+    private bool withN => Kind == "bank";
+
+    protected override void OnInitialized()
+    {
+        Load();
+    }
+
+    private void SelectKind(int i)
+    {
+        kindIdx = i;
+        formOpen = false;
+        Load();
+    }
+
+    private void Load()
+    {
+        list = Db.Defs.Where(d => d.Kind == Kind).OrderBy(d => d.Id).ToList();
+    }
+
+    private string SubOf(Def d)
+    {
+        if (Kind == "coin" || Kind == "bullion")
+            return "وزن: " + Talayar.MwG(d.X1) + " • عیار " + Talayar.Dig(d.X2);
+        if (Kind == "silver") return "عیار " + Talayar.Dig(d.X2) + "/1000";
+        if (Kind == "bank") return d.X3.Length > 0 ? "شماره حساب: " + Talayar.Dig(d.X3) : "";
+        return d.X3;
+    }
+
+    private void OpenForm()
+    {
+        msg = ""; err = "";
+        if (editingId == 0)
+        {
+            fName = ""; fW = ""; fK = ""; fN = "";
+        }
+        else
+        {
+            var d = Db.Defs.FirstOrDefault(x => x.Id == editingId);
+            if (d != null)
+            {
+                fName = d.Name;
+                fW = d.X1 > 0 ? Talayar.Mw(d.X1) : "";
+                fK = d.X2 > 0 ? d.X2.ToString() : "";
+                fN = d.X3;
+            }
+        }
+        formOpen = true;
+    }
+
+    private void Save()
+    {
+        err = ""; msg = "";
+        if (fName.Trim().Length == 0) { err = "نام را بنویسید"; return; }
+        var cv = new Def { Kind = Kind, Name = fName.Trim() };
+        if (withW) cv.X1 = Talayar.ParseMw(fW);
+        if (withK) cv.X2 = (long)Talayar.ParseDouble(fK);
+        if (withN) cv.X3 = Talayar.En(fN);
+
+        if (editingId == 0)
+        {
+            cv.Cts = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            Db.Defs.Add(cv);
+        }
+        else
+        {
+            var d = Db.Defs.FirstOrDefault(x => x.Id == editingId);
+            if (d != null)
+            {
+                d.Kind = Kind;
+                d.Name = cv.Name;
+                d.X1 = cv.X1;
+                d.X2 = cv.X2;
+                d.X3 = cv.X3;
+            }
+        }
+        Db.SaveChanges();
+        msg = "ذخیره شد ✓";
+        formOpen = false;
+        Load();
+    }
+
+    private void Delete()
+    {
+        err = "";
+        var d = Db.Defs.FirstOrDefault(x => x.Id == editingId);
+        if (d == null) return;
+        if (Svc.DefUsed(Kind, editingId, d.Name))
+        {
+            err = "این مورد در اسناد/حساب‌ها استفاده شده و برای حفظ صحت اسناد قابل حذف نیست. می‌توانید آن را ویرایش کنید.";
+            return;
+        }
+        Db.Defs.Remove(d);
+        Db.SaveChanges();
+        msg = "حذف شد ✓";
+        formOpen = false;
+        Load();
+    }
+}
