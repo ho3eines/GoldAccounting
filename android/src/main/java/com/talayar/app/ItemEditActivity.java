@@ -87,17 +87,17 @@ public class ItemEditActivity extends A {
         int w = mwOf(eWeight);
         if (w <= 0) { sumTv.setText("—"); return; }
         long gold = Math.round(U.equiv750(w, karat) * rate / 1000.0);
-        long wage = calcWage(gold, w, wtype, (double) U.parseMoney(U.str(eWage)));
+        long wage = calcWage(gold, w, wtype, U.parseDouble(U.str(eWage)));
         long tax = Math.round(wage * db.getL("tax", 10) / 100.0);
         long stone = moneyOf(eStoneVal);
         sumTv.setText("طلا: " + U.money(gold) + " • اجرت: " + U.money(wage) + " • مالیات: " + U.money(tax)
                 + "\nجمع تقریبی: " + U.money(gold + wage + tax + stone) + " تومان");
     }
 
-    public static long calcWage(long goldVal, long wmw, int wtype, long wval) {
+    public static long calcWage(long goldVal, long wmw, int wtype, double wval) {
         if (wtype == 0) return Math.round(goldVal * wval / 100.0);
         if (wtype == 1) return Math.round(wval * wmw / 1000.0);
-        return wval;
+        return Math.round(wval);
     }
 
     private void load() {
