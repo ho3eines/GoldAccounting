@@ -12,7 +12,8 @@ public class GuideActivity extends A {
         WebView guide = new WebView(this);
         WebSettings settings = guide.getSettings();
         settings.setDefaultTextEncodingName("UTF-8");
-        settings.setJavaScriptEnabled(false);
+        // جاوااسکریپت فقط برای جستجوی داخل فایل محلی راهنما فعال است (بدون دسترسی به اینترنت)
+        settings.setJavaScriptEnabled(true);
         guide.loadUrl("file:///android_asset/usage_manual.html");
         body.addView(guide, new android.widget.LinearLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
