@@ -38,6 +38,10 @@
                 </a>
                 <span class="hidden lg:inline-block text-xs text-slate-400" id="jalali-date"></span>
 
+                <!-- دکمهٔ راهنما -->
+                <a href="/guide" aria-label="راهنمای استفاده" title="راهنمای استفاده"
+                   class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg transition">📖</a>
+
                 <!-- دکمهٔ پروفایل (همبرگری دوم) -->
                 <button @onclick="OpenDrawer" aria-label="پروفایل کاربر" title="اطلاعات کاربر"
                         class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 font-black flex items-center justify-center shadow-lg shadow-amber-500/30 hover:brightness-110 transition">
@@ -186,6 +190,10 @@
             new NavLinkItem("/checks", "💳", "چک‌ها"),
             new NavLinkItem("/etikets", "🏷", "اتیکت‌ها"),
             new NavLinkItem("/defs", "🗄", "کدینگ‌ها"),
+        }),
+        new("راهنما", new[]
+        {
+            new NavLinkItem("/guide", "📖", "راهنمای استفاده (آموزش کامل)"),
         }),
         new("تحلیل و سیستم", new[]
         {
