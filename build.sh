@@ -16,7 +16,8 @@ ANDROID_JAR_LITE=$T/android-lite.jar
 ANDROID_JAR=$T/platforms/android-21/android.jar
 APK_RAW=$ROOT/talayar-raw.apk
 APK_FULL=$ROOT/talayar-full.apk
-APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v3.0.apk
+VERSION=${VERSION:-4.0}
+APK_FINAL=$ROOT/publish/Talayar-GoldAccounting-v$VERSION.apk
 
 echo "== 1/5 aapt2: کامپایل و لینک منابع"
 cd "$ROOT"

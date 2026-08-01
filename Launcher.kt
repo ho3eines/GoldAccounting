@@ -30,11 +30,13 @@ fun main(args: Array<String>) {
     c.setTargetVersion(7)
     c.setVerbose(false)
 
-    val res = sources.map { FileResource(it) as Resource }.toTypedArray()
+    val res = sources.map { org.codehaus.commons.compiler.util.resource.FileResource(it) }
+        .toTypedArray<org.codehaus.commons.compiler.util.resource.Resource>()
     try {
         c.compile(res)
     } catch (t: Throwable) {
         System.err.println("JANINO_FAILED: " + t.message)
+        t.printStackTrace(System.err)
         kotlin.system.exitProcess(1)
     }
     println("JANINO_OK classes=" + sources.size)
