@@ -101,3 +101,22 @@ namespace GoldAccounting.Server.Data
         public string? ErrorText { get; set; }
     }
 }
+
+namespace GoldAccounting.Server.Data
+{
+    // ---------- درخواست خرید از فروشگاه آنلاین ----------
+    public class ShopRequest
+    {
+        [Key]
+        public int Id { get; set; }
+        public int ItemId { get; set; }
+        public string ItemName { get; set; } = "";
+        public string CustomerName { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public int Qty { get; set; } = 1;
+        public string Note { get; set; } = "";
+        public string Status { get; set; } = "new"; // new / contacted / done / cancelled
+        public long Cts { get; set; }
+        public string DateJ { get; set; } = "";
+    }
+}

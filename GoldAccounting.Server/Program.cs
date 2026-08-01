@@ -58,6 +58,17 @@ using (var scope = app.Services.CreateScope())
             db.SaveChanges();
         }
 
+        // کالاهای نمونه برای فروشگاه آنلاین (فقط در نصب تازه)
+        if (!db.Items.Any())
+        {
+            long its = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            db.Items.Add(new Item { Code = 101, Name = "انگشتر طلای طرح ملکه", Karat = 750, Wmw = 5400, WType = 0, WVal = 7, StoneVal = 12000000, Descr = "بسیار شیک و پرطرفدار — مناسب هدیه", Status = "stock", Cts = its });
+            db.Items.Add(new Item { Code = 102, Name = "دستبند طلا کارتیه", Karat = 750, Wmw = 12500, WType = 0, WVal = 5, StoneVal = 0, Descr = "مدل جدید و ظریف", Status = "stock", Cts = its });
+            db.Items.Add(new Item { Code = 103, Name = "سرویس کامل طلا عروس", Karat = 750, Wmw = 45000, WType = 0, WVal = 6, StoneVal = 250000000, Descr = "مخصوص مراسم و سرمایه‌گذاری", Status = "stock", Cts = its });
+            db.Items.Add(new Item { Code = 104, Name = "النگوی آب‌شده ۲۱ عیار", Karat = 875, Wmw = 8000, WType = 1, WVal = 150000, StoneVal = 0, Descr = "آب‌شده — بدون مالیات", Status = "stock", Cts = its });
+            db.SaveChanges();
+        }
+
         // قیمت‌های اولیه بازار
         if (!db.MarketPrices.Any())
         {

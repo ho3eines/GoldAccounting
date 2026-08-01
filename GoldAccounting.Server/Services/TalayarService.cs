@@ -937,6 +937,26 @@ namespace GoldAccounting.Server.Services
             db.SaveChanges();
         }
 
+        // ---------- قیمت‌گذاری فروشگاه بر اساس نرخ روز ----------
+        /// <summary>وضعیت نرخ برای فروشگاه: نرخ، آیا امروز به‌روز شده، تاریخ آخرین نرخ</summary>
+        public (long rate, bool today, string dateJ) ShopRateInfo()
+        {
+            var last = db.Rates.OrderByDescending(r => r.Ts).ThenByDescending(r => r.Id).FirstOrDefault();
+            if (last == null) return (0, false, "");
+            return (last.RateVal, last.DateJ == Talayar.Jal.Today(), last.DateJ);
+        }
+
+        /// <summary>قیمت فروش کالا بر اساس نرخ روز (طلا + اجرت + سنگ + مالیات) — مثل فاکتور</summary>
+        public (long gold, long wage, long tax, long total) ItemPrice(Item it, long rate)
+        {
+            long gold = (long)Math.Round(Talayar.Equiv750(it.Wmw, it.Karat) * rate / 1000.0);
+            long wage = CalcWage(gold, it.Wmw, it.WType, it.WVal);
+            long tax = it.Name.Contains("ابشده")
+                ? 0
+                : (long)Math.Round(wage * GetL("tax", 10) / 100.0);
+            return (gold, wage, tax, gold + wage + it.StoneVal + tax);
+        }
+
         // ---------- کدینگ ----------
         public bool DefUsed(string kind, int id, string name)
         {
