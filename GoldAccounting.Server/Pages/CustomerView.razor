@@ -8,15 +8,13 @@
 <div class="space-y-6 max-w-4xl">
     @if (cust != null)
     {
-        @{
-            var s = Svc.CustomerSums(Id);
-            long rate = Svc.CurrentRate();
-            var assets = Db.AssetLedgers.Where(a => a.Scope == "customer" && a.Cid == Id)
-                .ToList().GroupBy(a => a.Asset)
-                .Select(g => new { asset = g.Key, qty = g.Sum(x => x.Qty) })
-                .Where(x => x.qty != 0).ToList();
-            var ledger = Db.CustomerTxs.Where(c => c.Cid == Id).OrderByDescending(c => c.Ts).ThenByDescending(c => c.Id).Take(200).ToList();
-        }
+        var s = Svc.CustomerSums(Id);
+        long rate = Svc.CurrentRate();
+        var assets = Db.AssetLedgers.Where(a => a.Scope == "customer" && a.Cid == Id)
+            .ToList().GroupBy(a => a.Asset)
+            .Select(g => new { asset = g.Key, qty = g.Sum(x => x.Qty) })
+            .Where(x => x.qty != 0).ToList();
+        var ledger = Db.CustomerTxs.Where(c => c.Cid == Id).OrderByDescending(c => c.Ts).ThenByDescending(c => c.Id).Take(200).ToList();
 
         <div class="flex justify-between items-center">
             <div>

@@ -149,7 +149,7 @@
     private long rate, cashBal;
     private (long raw, long eq) gold;
     private (long cash, long gold) debts;
-    private long[] today;
+    private long[] today = new long[6];
     private string serverApiUrl = "http://localhost:5000";
 
     protected override void OnInitialized()

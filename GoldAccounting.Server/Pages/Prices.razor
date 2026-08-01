@@ -1,4 +1,5 @@
 @page "/prices"
+@using System.Text.Json
 @inject AppDbContext Db
 @inject TalayarService Svc
 @inject HttpClient Http
@@ -130,7 +131,7 @@
                         ScanObject(p.Value);
                         continue;
                     }
-                    string mapped = MapSymbol(p.Name);
+                    string? mapped = MapSymbol(p.Name);
                     if (mapped == null) continue;
                     long v = Extract(p.Value);
                     if (v <= 0) continue;

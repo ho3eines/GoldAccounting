@@ -5,3 +5,9 @@ res.zip
 talayar-raw.apk
 talayar-full.apk
 publish/*.idsig
+
+# .NET build outputs
+GoldAccounting.Server/bin/
+GoldAccounting.Server/obj/
+GoldAccounting.Server/talayar_server.db
+*.db

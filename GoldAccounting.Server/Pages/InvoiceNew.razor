@@ -247,7 +247,6 @@
     private string err = "", msg = "";
 
     private long rate;
-    private (long gold, long wage, long stone, long tax, long total) t;
     private (long w, long eq, long val) pe;
     private long pcash, debt;
 
@@ -317,7 +316,6 @@
             CalcLine(ln);
             gold += ln.GoldVal; wage += ln.Wage; stone += ln.Stone; tax += ln.Tax; total += ln.Total;
         }
-        t = (gold, wage, stone, tax, total);
         pcash = Talayar.ParseMoney(cashInput);
         long w = Talayar.ParseMw(goldInput);
         double rasub = Talayar.ParseDouble(rasubInput);

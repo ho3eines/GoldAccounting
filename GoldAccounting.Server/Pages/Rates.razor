@@ -58,7 +58,7 @@
             {
                 long mn = chartVals.Min(), mx = chartVals.Max();
                 if (mx == mn) { mx += 1; mn -= 1; }
-                double iw = 900, ih = 220, padT = 24, padB = 30;
+                double iw = 900, ih = 220, padT = 24;
                 <svg viewBox="0 0 920 260" class="w-full" style="max-height:260px">
                     @for (int i = 0; i < chartVals.Count; i++)
                     {

@@ -221,7 +221,7 @@ namespace GoldAccounting.Server.Services
                 return DOW[dow] + " " + Of(dt.ToUnixTimeMilliseconds()).LongFa();
             }
 
-            public static string MonthPrefix(string dateJ) =>
+            public static string MonthPrefix(string? dateJ) =>
                 dateJ != null && dateJ.Length >= 7 ? dateJ.Substring(0, 7) : dateJ;
             public static string ThisMonth() => MonthPrefix(Today());
 

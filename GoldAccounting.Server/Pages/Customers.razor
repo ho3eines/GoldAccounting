@@ -157,22 +157,22 @@
     <!-- لیست -->
     <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
         <div class="divide-y">
-            @foreach (var c in customers)
+            @foreach (var row in customers)
             {
-                <a href="/customers/@c.Id" class="p-5 flex items-center justify-between gap-3 hover:bg-gray-50 block">
+                <a href="/customers/@row.c.Id" class="p-5 flex items-center justify-between gap-3 hover:bg-gray-50 block">
                     <div>
                         <div class="flex items-center gap-2">
-                            <span class="text-amber-600 font-mono font-bold text-sm">@Talayar.Dig(c.Code)</span>
-                            <p class="font-bold text-gray-800">@c.Name</p>
-                            <span class="text-xs px-2.5 py-0.5 rounded-full font-bold @(c.cash > 0 ? "bg-amber-100 text-amber-800" : c.cash < 0 ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500")">
-                                @(c.cash > 0 ? "بدهکار " + Talayar.Money(c.cash) : c.cash < 0 ? "بستانکار " + Talayar.Money(-c.cash) : "تسویه")
+                            <span class="text-amber-600 font-mono font-bold text-sm">@Talayar.Dig(row.c.Code)</span>
+                            <p class="font-bold text-gray-800">@row.c.Name</p>
+                            <span class="text-xs px-2.5 py-0.5 rounded-full font-bold @(row.cash > 0 ? "bg-amber-100 text-amber-800" : row.cash < 0 ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500")">
+                                @(row.cash > 0 ? "بدهکار " + Talayar.Money(row.cash) : row.cash < 0 ? "بستانکار " + Talayar.Money(-row.cash) : "تسویه")
                             </span>
                         </div>
                         <p class="text-xs text-gray-500 mt-1">
-                            @(c.Grp.Length > 0 ? c.Grp + " • " : "")@(c.Phone.Length > 0 ? "☎ " + Talayar.Dig(c.Phone) : "بدون تلفن")
-                            @if (c.gold != 0)
+                            @(row.c.Grp.Length > 0 ? row.c.Grp + " • " : "")@(row.c.Phone.Length > 0 ? "☎ " + Talayar.Dig(row.c.Phone) : "بدون تلفن")
+                            @if (row.gold != 0)
                             {
-                                <span class="@(c.gold > 0 ? "text-amber-700" : "text-green-600") font-bold"> • @Talayar.Gs(Math.Abs(c.gold)) @(c.gold > 0 ? "بدهکار" : "بستانکار")</span>
+                                <span class="@(row.gold > 0 ? "text-amber-700" : "text-green-600") font-bold"> • @Talayar.Gs(Math.Abs(row.gold)) @(row.gold > 0 ? "بدهکار" : "بستانکار")</span>
                             }
                         </p>
                     </div>

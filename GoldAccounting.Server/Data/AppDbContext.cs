@@ -30,6 +30,7 @@ namespace GoldAccounting.Server.Data
         public DbSet<DocRow> DocRows { get; set; }
         public DbSet<CustomerTx> CustomerTxs { get; set; }
         public DbSet<Etiket> Etikets { get; set; }
+        public DbSet<MarketPrice> MarketPrices { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -110,6 +111,10 @@ namespace GoldAccounting.Server.Data
         public long Stone { get; set; }
         public long Tax { get; set; }
         public long Total { get; set; }
+
+        /// <summary>ارزش طلای خام قلم (هماهنگ با محاسبهٔ اندروید)</summary>
+        [NotMapped]
+        public long GoldVal => (long)Math.Round(Wmw * Unit / 1000.0);
     }
 
     public class CashTransaction
