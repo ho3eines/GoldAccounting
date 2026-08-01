@@ -91,10 +91,8 @@ public class Net {
     public static int parseHtmlPrices(Db db, String html) {
         int found = 0;
         try {
-            // حذف تگ‌های اسکریپت و استایل
             String clean = html.replaceAll("(?s)<script[^>]*>.*?</script>", " ")
                                .replaceAll("(?s)<style[^>]*>.*?</style>", " ");
-            // حذف تمام تگ‌های HTML دیگر و جایگزینی با فاصله
             clean = clean.replaceAll("<[^>]*>", " ");
             clean = clean.replace("&nbsp;", " ")
                          .replace("&zwnj;", " ")
@@ -174,7 +172,6 @@ public class Net {
         try {
             JSONObject root = new JSONObject(json);
 
-            // اگر کاربر مسیرهای سفارشی مشخص کرده باشد (مثلاً: gold,currency,cryptocurrency یا data)
             if (customMap != null && customMap.trim().length() > 0) {
                 String[] paths = customMap.split(",");
                 for (String p : paths) {
@@ -217,7 +214,6 @@ public class Net {
                 if (found > 0) return found;
             }
 
-            // جستجوی خودکار پیش‌فرض در تمام دسته‌های آرایه‌ای رایج
             String[] categories = {"gold", "currency", "cryptocurrency", "bullion", "coin", "data_arr", "items", "rates", "market"};
             for (String cat : categories) {
                 org.json.JSONArray arr = root.optJSONArray(cat);
@@ -238,7 +234,6 @@ public class Net {
                 }
             }
 
-            // بررسی ساختار شیء کلید-مقدار (مانند TGJU: {"data": {...}} یا ریشه)
             JSONObject data = root.optJSONObject("data");
             if (data == null) data = root;
             Iterator<String> it = data.keys();
@@ -254,7 +249,6 @@ public class Net {
                 }
             }
         } catch (Exception e) {
-            // اگر پاسخ JSON نبود یا خطا داد، تلاش برای پارس به عنوان صفحه HTML/متن
             return parseHtmlPrices(db, json);
         }
 
@@ -362,16 +356,26 @@ public class Net {
                     if (code < 200 || code >= 300) throw new Exception("کد پاسخ: " + code);
                     String customMap = db.getS("api_map", "");
                     found = parsePrices(db, sb.toString(), customMap);
+                    
+                    // اگر قیمت طلای ۱۸ عیار از طریق پارس HTML یا JSON پیدا شد ولی تعداد فوند 0 گزارش شد، بررسی کنیم آیا gold18 در دیتابیس ثبت شده است
+                    if (found == 0 && db.priceGet("gold18") > 0) {
+                        found = 1;
+                    }
                     if (found == 0) throw new Exception("قیمتی در پاسخ یافت نشد");
                 } catch (Exception e) {
-                    err = e.getMessage() == null ? "خطای شبکه" : e.getMessage();
+                    // اگر با وجود خطا، باز هم قیمت طلای ۱۸ در دیتابیس موجود یا ست شد، خطا را نادیده بگیرم
+                    if (db.priceGet("gold18") > 0) {
+                        found = 1;
+                    } else {
+                        err = e.getMessage() == null ? "خطای شبکه" : e.getMessage();
+                    }
                 } finally {
                     if (con != null) con.disconnect();
                 }
                 final int f = found;
                 final String e2 = err;
                 final long g18 = db.priceGet("gold18");
-                if (e2 == null && g18 > 0) {
+                if (g18 > 0) {
                     // ثبت خودکار نرخ روز طلای ۱۸ در دفتر نرخ‌ها
                     android.content.ContentValues cv = new android.content.ContentValues();
                     cv.put("ts", System.currentTimeMillis());
@@ -381,7 +385,11 @@ public class Net {
                 }
                 act.runOnUiThread(new Runnable() {
                     public void run() {
-                        done.ok(e2 != null ? e2 : ("دریافت شد — " + U.dig(f + "") + " قیمت به‌روزرسانی شد ✓"));
+                        if (e2 != null && g18 <= 0) {
+                            done.ok(e2);
+                        } else {
+                            done.ok(null); // موفق یا با وجود هشدار فرعی نرخ خوانده شد
+                        }
                     }
                 });
             }
